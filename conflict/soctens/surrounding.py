@@ -1,0 +1,77 @@
+import numpy as np
+import pandas as pd
+from panel_imputer import PanelImputer
+
+from base.datasets import ACLEDData, VDemData
+from base.objects import Indicator, ConfigParser, GlobalBaseGrid
+from conflict.shared import NormalizationMixin
+from utils.data_processing import process_yearly_data
+from utils.spatial_operations import create_diffusion_layers
+
+
+class ConSoctensSurrounding(Indicator, NormalizationMixin):
+    def __init__(
+        self,
+        config: ConfigParser,
+        grid: GlobalBaseGrid,
+        pillar: str = "CON",
+        dim: str = "soctens",
+        id: str = "surrounding",
+    ):
+        """Params defining indicator's place in index set to designed hierarchy by default"""
+        self.acled = ACLEDData(config=config)
+        self.vdem = VDemData(config)
+        super().__init__(pillar=pillar, dim=dim, id=id, config=config, grid=grid)
+
+    def load_data(self) -> tuple[pd.DataFrame, pd.DataFrame]:
+        df_acled = self.acled.load_data()
+        df_vdem = self.vdem.load_data("v2x_libdem")
+        return df_acled, df_vdem
+
+    def preprocess_data(self, input_data: tuple[pd.DataFrame, pd.DataFrame]) -> pd.DataFrame:
+        df_acled, df_vdem = input_data
+        # acled preprocessing creates the data structure
+        df_base = self.create_base_df()
+        acled_preprocessed = self.acled.create_grid_quarter_aggregates(df_base, df_acled)
+        df_vdem = self.vdem.preprocess_data(df_vdem)
+        # match with grid
+        df_preprocessed = process_yearly_data(acled_preprocessed, df_vdem, df_vdem.columns)
+        # impute missing data via forward-filling
+        imputer = PanelImputer(
+            time_index=["year", "quarter"],
+            location_index="pgid",
+            imputation_method="ffill",
+        )
+        df_preprocessed["v2x_libdem"] = imputer.fit_transform(df_preprocessed[["v2x_libdem"]])
+        return df_preprocessed
+
+    def create_indicator(self, df_preprocessed: pd.DataFrame) -> pd.DataFrame:
+        """Indicator and raw values both"""
+        df_preprocessed["protest_intensity_logvdem"] = df_preprocessed["unrest_event_count"].apply(
+            np.log1p
+        ) * (1 - df_preprocessed["v2x_libdem"])
+        base_vars = ["protest_intensity_logvdem", "unrest_event_count"]
+        df_diffusion = create_diffusion_layers(df_preprocessed, base_vars)
+        # sum of all fatalities in the neighborhood as raw value
+        df_diffusion = df_diffusion.rename(
+            columns={
+                f"{base_vars[0]}_diffusion_mean": self.composite_id,
+                f"{base_vars[1]}_diffusion_sum": f"{self.composite_id}_raw",
+            }
+        )
+        df_indicator = pd.concat([df_preprocessed, df_diffusion], axis=1)
+        df_indicator[self.composite_id] = df_indicator[self.composite_id].apply(np.log1p)
+        return df_indicator
+
+    def normalize(self, df_indicator: pd.DataFrame) -> pd.DataFrame:
+        """Standardized normalization via ConflictMixin"""
+        quantile = self.indicator_config["normalization_quantile"]
+        return self.conflict_normalize(df_indicator, self.composite_id, quantile)
+
+
+# this is possible by adding the root folder as the PYTHONPATH var in .env
+if __name__ == "__main__":
+    config = ConfigParser()
+    grid = GlobalBaseGrid(config)
+    indicator = ConSoctensSurrounding(config=config, grid=grid)
+    indicator.run()

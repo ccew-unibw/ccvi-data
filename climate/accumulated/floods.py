@@ -1,0 +1,72 @@
+import pandas as pd
+from utils.index import get_quarter
+
+from base.datasets.ewds_floods import EWDSData
+from base.objects import Indicator, ConfigParser, GlobalBaseGrid
+
+from climate.shared import aggregate_periods, NormalizationMixin
+
+
+class CliAccumulatedFloods(Indicator, NormalizationMixin):
+    def __init__(
+        self,
+        config: ConfigParser,
+        grid: GlobalBaseGrid,
+        pillar: str = "CLI",
+        dim: str = "accumulated",
+        id: str = "floods",
+    ):
+        """Params defining indicator's place in index set to designed hierarchy by default"""
+        self.ewds = EWDSData(local=False, config=config)
+        super().__init__(pillar=pillar, dim=dim, id=id, config=config, grid=grid)
+
+    def load_data(self) -> pd.DataFrame:
+        df = self.ewds.load_data()
+        return df
+
+    def preprocess_data(self, df_ewds: pd.DataFrame) -> pd.DataFrame:
+        fp_preprocessed = self.ewds.storage.build_filepath(
+            "processing", filename="ewds_floods_preprocessed"
+        )
+        try:
+            fp_preprocessed = pd.read_parquet(fp_preprocessed)
+            last_quarter_date = get_quarter("last")
+
+            if fp_preprocessed["time"].max().date() < last_quarter_date:
+                raise FileNotFoundError
+            return fp_preprocessed
+
+        except FileNotFoundError:
+            print("-- df_base creation ...")
+            df_base = self.create_base_df(start_year=df_ewds["YEAR"].min())
+            print("-- create_grid_quarter_aggregates ...")
+            df_preprocessed = self.ewds.create_grid_quarter_aggregates(df_base, df_ewds)
+
+            return df_preprocessed
+
+    def create_indicator(self, df_preprocessed: pd.DataFrame) -> pd.DataFrame:
+        # make the 1y indicator aggregation
+
+        df_preprocessed["quarter"] = df_preprocessed["time"].dt.to_period("Q")
+        df_preprocessed = aggregate_periods(df_preprocessed, self.id, "7yr")
+        df_preprocessed["year"] = df_preprocessed["quarter"].dt.year
+        df_preprocessed["quarter"] = df_preprocessed["quarter"].dt.quarter
+
+        df_preprocessed.rename(columns={"count": f"{self.composite_id}_raw"}, inplace=True)
+
+        return df_preprocessed
+
+    def normalize(self, df_indicator: pd.DataFrame) -> pd.DataFrame:
+        """Standardized normalization via ClimateMixin"""
+        df_normalized = self.climate_normalize(
+            df_indicator, self.composite_id, self.indicator_config, self.global_config["start_year"]
+        )
+        return df_normalized
+
+
+# this is possible by adding the root folder as the PYTHONPATH var in .env
+if __name__ == "__main__":
+    config = ConfigParser()
+    grid = GlobalBaseGrid(config)
+    indicator = CliAccumulatedFloods(config=config, grid=grid)
+    indicator.run()

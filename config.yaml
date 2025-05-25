@@ -1,0 +1,204 @@
+# DATA CONFIG
+#
+# Config entries denote filenames for input data (stored in global_config["storage_path"]/input) for 
+# easy switching in case of updates. The keys are used as data source identifiers throughout the 
+# CCVI and match the data keys in the base.Dataset subclasses. 
+data:
+  vdem: V-Dem-CY-Full+Others-v15.rds # https://v-dem.net/data/the-v-dem-dataset/
+  countries: geoBoundariesCGAZ_ADM0.gpkg # https://www.geoboundaries.org/
+  admin1: geoBoundariesCGAZ_ADM1.gpkg # https://www.geoboundaries.org/
+  land_mask: ne_50m_land.zip # https://www.naturalearthdata.com/downloads/
+  inland_water_mask: ne_10m_lakes.zip # https://www.naturalearthdata.com/downloads/
+  acled: acled_index_input_20250404.parquet # https://acleddata.com/
+  shdi: SHDI-SGDI-Total 8.0.csv # https://globaldatalab.org/
+  shdi_shapes: "GDL Shapefiles V6.4.zip" # https://globaldatalab.org/
+  wpp: WPP2024_GEN_F01_DEMOGRAPHIC_INDICATORS_COMPACT.xlsx # https://population.un.org/wpp/
+  wpp_agegroups: WPP2024_POP_F03_1_POPULATION_SELECT_AGE_GROUPS_BOTH_SEXES.xlsx # https://population.un.org/wpp/
+  freedomhouse: All_data_FIW_2013-2024.xlsx # https://freedomhouse.org/report/freedom-world
+  # CPI 2024 file comes in a format openpyxl cannot read - needs to be opened and saved as a standard excel worksheet before use
+  cpi: CPI2024-Results-and-trends.xlsx # https://www.transparency.org/en/cpi/2024
+  hdi: HDR25_Composite_indices_complete_time_series.csv # https://hdr.undp.org/data-center/
+  epr: EPR-2021.csv # https://icr.ethz.ch/data/epr/
+  geoepr: GeoEPR-2021.geojson # https://icr.ethz.ch/data/epr/
+  swiid: swiid9_8_summary.csv # https://fsolt.org/swiid/
+
+
+# INDICATOR CONFIG
+# Indicator config is structured along the index hierarchy: Pillar - Dimensions - Indicator
+# The keys for the different levels correspont to the ID strings used in each indicator class.
+# Indicator configuration and its uses needs to be specified in the respective Indicator classes.
+indicators:
+  CLI:
+    current:
+      floods:
+        transformation: log1p
+        normalization_quantile: null
+      heatwave:
+        transformation: null
+        normalization_quantile: {'limits':[0, 0.9995]}
+      drought:
+        transformation: null
+        normalization_quantile: {'limits':[0, 0.9995]}
+      cyclones:
+        transformation: log1p
+        normalization_quantile: null
+      wildfires:
+        transformation: log1p
+        normalization_quantile: null
+      heavy-precipitation:
+        transformation: null
+        normalization_quantile: {'limits':[0.005, 0.9995]}
+    accumulated:
+      floods:
+        transformation: log1p
+        normalization_quantile: null
+      heatwave:
+        transformation: null
+        normalization_quantile: {'limits':[0, 0.9995]}
+      drought:
+        transformation: null
+        normalization_quantile: {'limits':[0, 0.9995]}
+      cyclones:
+        transformation: log1p
+        normalization_quantile: null
+      wildfires:
+        transformation: log1p
+        normalization_quantile: null
+      heavy-precipitation:
+        transformation: null
+        normalization_quantile: {'limits':[0, 0.9995]}
+    longterm:
+      temperature-anomaly:
+        transformation: custom_zero_if_negative
+        normalization_quantile: null
+      relative-sea-level:
+        transformation: log1p
+        normalization_quantile: null
+      precipitation-anomaly:
+        transformation: log1p
+        normalization_quantile: null
+  CON:
+    level:
+      intensity:
+        normalization_quantile: 0.99
+      surrounding:
+        normalization_quantile: 0.99
+    soctens:
+      intensity:
+        normalization_quantile: 0.99
+      surrounding:
+        normalization_quantile: 0.99
+  VUL:
+    socioeconomic:
+    political:
+      ethnic:
+        buffer_size: 1.5
+    demographic:
+
+# AGGREGATION CONFIG
+# config for aggregation steps at different hierarchies, sorted by Pillar and Dimension
+# RISK configures the three main composite risk score aggregations, conflict risk, climate risk and 
+# the combined CCVI score aggregation takes "method", "weights", and "normalize" keys.
+# "method":    Aggregation method. Available by default are (arthmetic) "mean", "gmean" (geometric 
+#              mean), and "pmean" (quadratic mean). Custom aggregation functions need to be 
+#              implemented and added to base.objects.AggregateScore.aggregate().
+# "weights":   Custom weights for the aggregation. Need to be specified as component ID: weight pairs.
+#              "None" results in equal weights for all aggregation components.
+# "normalize": Whether to re-normalize the scores to 0-1 after aggregation. Can be True or False.
+aggregation:
+  RISK:
+    CCVI:
+      method: pmean
+      weights: None
+      normalize: True
+    CLI_risk: 
+      method: gmean
+      weights: None
+      normalize: True
+    CON_risk:
+      method: gmean
+      weights: None
+      normalize: True
+  CON:
+    level: 
+      method: mean
+      weights: None
+      normalize: True
+    persistence:
+      method: mean
+      weights: None
+      normalize: True
+    soctens:
+      method: mean
+      weights: None
+      normalize: True
+    pillar:
+      method: conflict_pillar
+      weights: None
+      normalize: True
+  CLI:
+    current: 
+      method: pmean
+      weights: None
+      normalize: True
+    accumulated:
+      method: pmean
+      weights: {
+                'CLI_accumulated_cyclones': 2,
+                'CLI_accumulated_drought': 2,
+                'CLI_accumulated_wildfires': 2,
+                'CLI_accumulated_heavy-precipitation': 2,
+                'CLI_accumulated_floods': 1,
+                'CLI_accumulated_heatwave': 2
+                }
+      normalize: True
+    longterm:
+      method: pmean
+      weights: None
+      normalize: True
+    pillar:
+      method: mean
+      weights: None
+      normalize: True
+  VUL:
+    demographic:
+      method: mean
+      weights: None
+      normalize: True
+    political:
+      method: mean
+      weights: None
+      normalize: True
+    socioeconomic:
+      method: mean
+      weights: None
+      normalize: True
+    pillar:
+      method: mean
+      weights: None
+      normalize: True
+
+
+# GLOBAL SETTINGS
+global:
+  # Start year for data processing and indicator generation. 
+  # Earlier years than 2015 may run into data availability issues.
+  start_year: 2015
+  # Path under which the input/processing/output storage folders are contained/will be created.
+  storage_path: data
+  # IDs added to regenerate force regeneration of indicator calculation, preprocessing or data 
+  # loading even if current versions are in storage. Aggregate scores are always regenerated.
+  # Use "all" in any categorie to force regeneration of everything.
+  regenerate:
+    # specify list of indicator composite_id(s) to force regeneration of indicator calculation.
+    indicator:
+      # - CON_level_intensity
+    # Specify list of indicator composite_id(s) or dataset data_key(s) to force regeneration of 
+    # preprocessing.
+    # Additionally, "base_grid" to regenerate the grid and "climate_exposure" to regenerate the 
+    # climate exposure layer are possible entries.
+    preprocessing:
+      # - base_grid
+    # Specify list of dataset data_key(s) to force regeneration of data (down)loading.
+    data:
+      # - acled
