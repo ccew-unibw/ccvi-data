@@ -301,8 +301,8 @@ class NormalizationMixin:
         )
 
         # Set index
-        df_indicator = df_indicator.set_index(["pgid", "year", "quarter"])
+        df_indicator = df_indicator.set_index(["pgid", "year", "quarter"]).sort_index()
         df_indicator = df_indicator.loc[
             (slice(None), slice(start_year, None), slice(None)), slice(None)
-        ].sort_index()
+        ]
         return df_indicator[[col for col in df_indicator.columns if composite_id in col]].copy()
