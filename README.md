@@ -198,5 +198,5 @@ See the [LICENSE](LICENSE) file for details.
 
 ## Disclaimer
 
-The project is funded by the the German Federal Foreign Office. The views and opinions expressed in this projects, such as country assignments and boundaries, are those of the author(s) and do not necessarily reflect the official policy or position of any agency of the German government.
+The project is funded by the German Federal Foreign Office. The views and opinions expressed in this projects, such as country assignments and boundaries, are those of the author(s) and do not necessarily reflect the official policy or position of any agency of the German government.
 
