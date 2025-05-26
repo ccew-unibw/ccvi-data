@@ -1,8 +1,15 @@
+> [!NOTE]  
+> This repository does not reflect the previous data generation visible on climate-conflict.org. We plan to switch to this new data pipeline for the 2025-Q2 release, with testing currently still under way.
+
 # ccvi-data: Data processing for the Climate—Conflict—Vulnerability Index (CCVI)
 
-The Climate Conflict Vulnerability Index (CCVI) is a joint research project between the Center for Crisis Early Warning (CCEW) at University of the Bundeswehr Munich, the FutureLab Security, Ethnic Conflicts and Migration at the Potsdam Institute for Climate Impact Research (PIK), and the German Federal Foreign Office. The CCVI is a scientifically informed tool that enables policymakers and researchers to assess and map current global risks to human security arising from climate and conflict hazards, their intersections and the potential for harmful interactions. Additionally, the CCVI reveals how vulnerabilities can amplify the impacts of climate and conflict hazards, increasing risks to human security.
+The Climate Conflict Vulnerability Index (CCVI) is the result of a joint research project between the [Center for Crisis Early Warning (CCEW)](https://www.unibw.de/ciss-en/ccew) at [University of the Bundeswehr Munich](https://www.unibw.de/home-en), the [FutureLab "Security, Ethnic Conflicts and Migration"](https://www.pik-potsdam.de/en/institute/futurelabs-science-units/security-ethnic-conflicts-and-migration) at the [Potsdam Institute for Climate Impact Research (PIK)](https://www.pik-potsdam.de/en), and the [German Federal Foreign Office](https://www.auswaertiges-amt.de/en). 
 
-The data and documentation of our conceptual and technical approach are available at https://climate-conflict.org. The data is updated quarterly and gridded to 0.5 degrees (ca. 55km by 55km at the equator).
+The goal of the project is to establish a scientifically informed tool that enables policymakers and researchers to assess and map current global risks to human security arising from climate and conflict hazards, their intersections and the potential for harmful interactions. Additionally, the CCVI reveals how vulnerabilities can amplify the impacts of climate and conflict hazards, increasing risks to human security.
+
+The data and documentation of our conceptual and technical approach are available at [https://climate-conflict.org](https://climate-conflict.org/www/index/methodology). 
+
+The data is updated quarterly and gridded to 0.5 degrees (ca. 55km by 55km at the equator).
 
 ## Table of Contents
 * [Overview](#overview)
@@ -66,7 +73,7 @@ uv add <package-name>
 
 For more information see the [official `uv` documentation](https://docs.astral.sh/uv/).
 
-The repository is formated via ruff.
+The repository is formated via [ruff](https://github.com/astral-sh/ruff).
 
 ## Configuration
 
@@ -131,11 +138,11 @@ The following configurations are available
 
 The project framework was designed with modularity in mind. Individual indicator and data sources can easily be modified and replaces without affecting the whole project.
 
-The architecture follows the composite index logic of the CCVI. Base classes were designed to handle the core functionality and provide a unique interface for Datasets, Indicators, and our two main aggregation levels Dimensions and Pillars. Additionally, shared ConfigParser, StorageManager and GlobalBasegrid classes provide the framework for the geospatial resultion, to read config, and to cache processing steps and store results.
+The architecture follows the composite index logic of the CCVI. Base classes were designed to handle the core functionality and provide a unique interface for `Datasets`, `Indicators`, and our two main aggregation levels `Dimensions` and Pillars. Additionally, shared `ConfigParser`, `StorageManager` and `GlobalBasegrid` classes provide the framework for the geospatial resultion, to read config, and to cache processing steps and store results.
 
 ### Data structure
 
-All CCVI scores are stored as .parquet files from pandas DataFrames with a ('pgid', 'year', 'quarter') MultiIndex, where 'pgid' stands for PRIO-GRID id, an unique identifier for each grid cell.
+All CCVI scores are stored as `.parquet` files from pandas DataFrames with a `('pgid', 'year', 'quarter')` MultiIndex, where `pgid` stands for PRIO-GRID id, an unique identifier for each grid cell.
 
 ### Datasets
 *`base.objects.Dataset`*
@@ -168,7 +175,7 @@ Similar to indicators, the `run()` method orchestrates the aggregation process: 
 * runs any missing components,
 * loads the data from these components via `load_components()`,
 * calculates aggreate scores via `aggregate()`.
-* saves the final aggregated score as .parquet file to the output/ folder.
+* saves the final aggregated score as `.parquet` file to the output/ folder.
 
 An optional add_exposure() modifies the data before aggregation depending on the `has_exposure` attribute, which is implemented for the climate pillar in the CCVI in the `climate.shared.ClimateDimension` subclass.
 
@@ -185,7 +192,7 @@ The framework relies on three core utility classes for its fundamental operation
 
 ## Contributions
 
-We welcome bug reports through issues. While the version on climate-conflict.org is developed internally, with this repository we want to enable anyone to extend and adapt the CCVI to their needs and requirements, and create their own custom versions.
+We welcome bug reports through issues. While the version found on on <https://climate-conflict.org> is developed internally, with this repository we want to enable anyone to extend and adapt the CCVI to their needs and requirements, and create their own custom versions.
 
 ## License
 
@@ -194,5 +201,5 @@ See the [LICENSE](LICENSE) file for details.
 
 ## Disclaimer
 
-The project is funded by the the German Federal Foreign Office. The views and opinions expressed in this projects, such as country assignments and boundaries, are those of the author(s) and do not necessarily reflect the official policy or position of any agency of the German government.
+The project is funded by the German Federal Foreign Office. The views and opinions expressed in this projects, such as country assignments and boundaries, are those of the author(s) and do not necessarily reflect the official policy or position of any agency of the German government.
 
