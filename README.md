@@ -70,7 +70,7 @@ uv add <package-name>
 
 For more information see the [official `uv` documentation](https://docs.astral.sh/uv/).
 
-The repository is formated via ruff.
+The repository is formated via [ruff](https://github.com/astral-sh/ruff).
 
 ## Configuration
 
@@ -135,11 +135,11 @@ The following configurations are available
 
 The project framework was designed with modularity in mind. Individual indicator and data sources can easily be modified and replaces without affecting the whole project.
 
-The architecture follows the composite index logic of the CCVI. Base classes were designed to handle the core functionality and provide a unique interface for Datasets, Indicators, and our two main aggregation levels Dimensions and Pillars. Additionally, shared ConfigParser, StorageManager and GlobalBasegrid classes provide the framework for the geospatial resultion, to read config, and to cache processing steps and store results.
+The architecture follows the composite index logic of the CCVI. Base classes were designed to handle the core functionality and provide a unique interface for `Datasets`, `Indicators`, and our two main aggregation levels `Dimensions` and Pillars. Additionally, shared `ConfigParser`, `StorageManager` and `GlobalBasegrid` classes provide the framework for the geospatial resultion, to read config, and to cache processing steps and store results.
 
 ### Data structure
 
-All CCVI scores are stored as .parquet files from pandas DataFrames with a ('pgid', 'year', 'quarter') MultiIndex, where 'pgid' stands for PRIO-GRID id, an unique identifier for each grid cell.
+All CCVI scores are stored as `.parquet` files from pandas DataFrames with a `('pgid', 'year', 'quarter')` MultiIndex, where `pgid` stands for PRIO-GRID id, an unique identifier for each grid cell.
 
 ### Datasets
 *`base.objects.Dataset`*
@@ -172,7 +172,7 @@ Similar to indicators, the `run()` method orchestrates the aggregation process: 
 * runs any missing components,
 * loads the data from these components via `load_components()`,
 * calculates aggreate scores via `aggregate()`.
-* saves the final aggregated score as .parquet file to the output/ folder.
+* saves the final aggregated score as `.parquet` file to the output/ folder.
 
 An optional add_exposure() modifies the data before aggregation depending on the `has_exposure` attribute, which is implemented for the climate pillar in the CCVI in the `climate.shared.ClimateDimension` subclass.
 
@@ -189,7 +189,7 @@ The framework relies on three core utility classes for its fundamental operation
 
 ## Contributions
 
-We welcome bug reports through issues. While the version on climate-conflict.org is developed internally, with this repository we want to enable anyone to extend and adapt the CCVI to their needs and requirements, and create their own custom versions.
+We welcome bug reports through issues. While the version found on on <https://climate-conflict.org> is developed internally, with this repository we want to enable anyone to extend and adapt the CCVI to their needs and requirements, and create their own custom versions.
 
 ## License
 
