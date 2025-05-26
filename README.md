@@ -1,8 +1,12 @@
 # ccvi-data: Data processing for the Climate—Conflict—Vulnerability Index (CCVI)
 
-The Climate Conflict Vulnerability Index (CCVI) is a joint research project between the Center for Crisis Early Warning (CCEW) at University of the Bundeswehr Munich, the FutureLab Security, Ethnic Conflicts and Migration at the Potsdam Institute for Climate Impact Research (PIK), and the German Federal Foreign Office. The CCVI is a scientifically informed tool that enables policymakers and researchers to assess and map current global risks to human security arising from climate and conflict hazards, their intersections and the potential for harmful interactions. Additionally, the CCVI reveals how vulnerabilities can amplify the impacts of climate and conflict hazards, increasing risks to human security.
+The Climate Conflict Vulnerability Index (CCVI) is the result of a joint research project between the [Center for Crisis Early Warning (CCEW)](https://www.unibw.de/ciss-en/ccew) at [University of the Bundeswehr Munich](https://www.unibw.de/home-en), the [FutureLab "Security, Ethnic Conflicts and Migration"](https://www.pik-potsdam.de/en/institute/futurelabs-science-units/security-ethnic-conflicts-and-migration) at the [Potsdam Institute for Climate Impact Research (PIK)](https://www.pik-potsdam.de/en), and the [German Federal Foreign Office](https://www.auswaertiges-amt.de/en). 
 
-The data and documentation of our conceptual and technical approach are available at https://climate-conflict.org. The data is updated quarterly and gridded to 0.5 degrees (ca. 55km by 55km at the equator).
+The goal of the project is to establish a scientifically informed tool that enables policymakers and researchers to assess and map current global risks to human security arising from climate and conflict hazards, their intersections and the potential for harmful interactions. Additionally, the CCVI reveals how vulnerabilities can amplify the impacts of climate and conflict hazards, increasing risks to human security.
+
+The data and documentation of our conceptual and technical approach are available at [https://climate-conflict.org](https://climate-conflict.org/www/index/methodology). 
+
+The data is updated quarterly and gridded to 0.5 degrees (ca. 55km by 55km at the equator).
 
 ## Table of Contents
 * [Overview](#overview)
