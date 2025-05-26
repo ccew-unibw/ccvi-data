@@ -62,7 +62,7 @@ class SubnationalHDIData(Dataset):
         df_shdi = df_shdi.rename(columns={"GDLCODE": "gdlcode"})
         df_shdi = df_shdi[df_shdi.year >= self.global_config["start_year"] - 5]
         df_shdi = df_shdi[df_shdi.level == "Subnat"]
-        df_shdi = df_shdi.set_index(["gdlcode", "year"]).loc[shdi_cols]
+        df_shdi = df_shdi.set_index(["gdlcode", "year"])[shdi_cols]
         return df_shdi.sort_index()
 
     def preprocess_data(
