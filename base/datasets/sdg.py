@@ -93,4 +93,8 @@ class SDGData(Dataset):
         df = df.set_index(["iso3", "year", "SeriesCode"]).drop(columns="country")
         df = df.unstack(level="SeriesCode").droplevel(0, axis="columns")  # type: ignore
         df_out = df_out.merge(df, how="left", left_index=True, right_index=True)
+        for col in df_out.columns:
+            if df_out[col].dtype == object:
+                # there can be string dtypes due to <x values returned - assign them their max value
+                df_out[col] = df_out[col].str.replace("<", "").astype(float)
         return df_out
