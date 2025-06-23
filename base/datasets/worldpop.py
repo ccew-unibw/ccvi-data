@@ -241,7 +241,7 @@ class WorldPopData(Dataset):
         Asserts that `self.data_loaded` is True. Loads the static 'wp_land.parquet'
         file if it has already been generated. Otherwise, or if
         `self.regenerate['preprocessing']` is True, calculates the grid cell land
-        areas by summing the areas of all pixels from the WorldPop area raster
+        areas in km² by summing the areas of all pixels from the WorldPop area raster
         that fall within that cell's boundaries. The source file only contains
         information on land pixels, so no further filtering is required. Saves
         the resulting DataFrame as 'wp_land.parquet'.
@@ -265,6 +265,7 @@ class WorldPopData(Dataset):
             da = xr.open_dataset(self.file_pixel_areas)["land_area"]  # type: ignore
             df = grid.load()
             df["land_area"] = df.apply(lambda x: aggregate_cell(x.lat, x.lon), axis=1)  # type: ignore
+            df["land_area"] = df["land_area"] / 1e6 # convert to km²
             self.storage.save(df, "processing", "wp_land")
         else:
             df = self.storage.load("processing", "wp_land")
