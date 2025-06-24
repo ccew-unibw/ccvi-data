@@ -330,7 +330,7 @@ class WorldPopData(Dataset):
             time_index=["year", "quarter"],
             imputation_method="interpolate",
             interp_method="slinear",
-            tail_behavior="extrapolate",
+            tail_behavior=["fill", "extrapolate"],
         )
         df_out.update(
             imputer.fit_transform(df_out[["land_area", "pop_count", "pop_density"]]),  # type: ignore
