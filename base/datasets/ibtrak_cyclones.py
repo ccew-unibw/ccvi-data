@@ -1419,7 +1419,7 @@ class IBTRAKData(Dataset):
 
             # drop duplicates
             df_event_level = df_event_level.drop_duplicates(
-                subset=["LATITUDE", "LONGITUDE", "YEAR", "QUARTER"]
+                subset=["LATITUDE", "LONGITUDE", "YEAR", "QUARTER", "STORMID"]
             )
 
             # aggregate
