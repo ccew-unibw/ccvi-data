@@ -1,4 +1,3 @@
-# add python path to the base directory
 import os
 import pandas as pd
 import numpy as np
@@ -35,8 +34,8 @@ class ZsGEE:
         intervalUnit = "month"  #'month'  # unit of time e.g. 'year', 'month', 'day'
         intervalCount = 1  # 275 # number of time windows in the series
         dataset = ee.ImageCollection(self.satellite).select(self.bands)
-        temporalReducer = ee.Reducer.sum()  # how to reduce images in time window
-        spatialReducers = ee.Reducer.sum()  # how to reduce images in time window
+        temporalReducer = ee.Reducer.mean()  # how to reduce images in time window
+        spatialReducers = ee.Reducer.mean()  # how to reduce images in time window
 
         # Get time window index sequence.
         intervals = ee.List.sequence(0, intervalCount - 1, interval)
@@ -77,7 +76,7 @@ class ZsGEE:
         out_pd["q"] = out_pd["quarter"].str.strip().str[-2:]
         # if not os.path.exists("../latlon.parquet.gzip"):
         #    out_pd[["pgid","lat","lon"]].to_parquet("latlon.parquet.gzip",compression="gzip")
-        return out_pd[["pgid", "composite_start", "sum", "quarter", "q"]]
+        return out_pd[["pgid", "composite_start", "mean", "quarter", "q"]]
 
 
 def fc_to_dict(fc):
@@ -277,20 +276,46 @@ class PrecipitationAnomaly(object):
         self.current = self._add_year(self.current)
 
         # Rename to avoid confusion when aggregating.
-        self.baseline = self.baseline.rename(columns={"sum": "total_precipitation_sum"})
-        self.current = self.current.rename(columns={"sum": "total_precipitation_sum"})
+        self.baseline = self.baseline.rename(columns={"mean": "total_precipitation_sum"})
+        self.current = self.current.rename(columns={"mean": "total_precipitation_sum"})
 
         # Aggregate from months to years
         self.baseline = (
-            self.baseline.groupby(["pgid", "year"])
-            .agg({"total_precipitation_sum": "sum"})
+            self.baseline.groupby(["pgid"])
+            .agg({"total_precipitation_sum": "mean"})
             .reset_index()
         )
+        self.baseline = self.baseline.rename(
+            columns={"total_precipitation_sum": "total_precipitation_sum_baseline"}
+        )
+
         self.current = (
-            self.current.groupby(["pgid", "year"])
-            .agg({"total_precipitation_sum": "sum"})
+            self.current.groupby(["pgid", "quarter", "year"])
+            .agg({"total_precipitation_sum": "mean"})
             .reset_index()
         )
+
+        # Sort the data by pgid and quarter to ensure proper order
+        self.current = self.current.sort_values(['pgid', 'quarter'])
+
+        # Calculate 12-month (4-quarter) rolling average grouped by pgid
+        self.current['total_precipitation_12m_avg'] = (
+            self.current.groupby('pgid')['total_precipitation_sum']
+            .rolling(window=4, min_periods=1)
+            .mean()
+            .reset_index(level=0, drop=True)
+        )
+
+
+        # Alternative method if you want to require at least 4 quarters of data
+        # (this will show NaN for the first 3 quarters of each pgid)
+        self.current['total_precipitation_12m_avg_strict'] = (
+            self.current.groupby('pgid')['total_precipitation_sum']
+            .rolling(window=4, min_periods=4)
+            .mean()
+            .reset_index(level=0, drop=True)
+        )
+
 
         return None
 
@@ -300,13 +325,13 @@ class PrecipitationAnomaly(object):
         """
 
         # Calculate average over sum per year per pgid
-        self.baseline = (
-            self.baseline.groupby("pgid").agg({"total_precipitation_sum": "mean"}).reset_index()
-        )
+        #self.baseline = (
+        #    self.baseline.groupby("pgid").agg({"total_precipitation_sum": "mean"}).reset_index()
+        #)
 
-        self.baseline = self.baseline.rename(
-            columns={"total_precipitation_sum": "total_precipitation_mean_baseline"}
-        )
+        #self.baseline = self.baseline.rename(
+        #    columns={"total_precipitation_sum": "total_precipitation_mean_baseline"}
+        #)
 
         return None
 
@@ -328,7 +353,7 @@ class PrecipitationAnomaly(object):
         # Calculate the annual anomaly per pgid
         # TODO: Change naming for all occurences
         results["CLI_longterm_precipitation-anomaly_raw"] = (
-            results["total_precipitation_sum"] / results["total_precipitation_mean_baseline"]
+            results["total_precipitation_12m_avg"] / results["total_precipitation_sum_baseline"]
         ) - 1
 
         # Calculate the absolute value for the percentage anomaly
@@ -344,12 +369,13 @@ class PrecipitationAnomaly(object):
                 :, "CLI_longterm_precipitation-anomaly_raw"
             ].shift(i)
 
+        
         # Filter the data to only contain everyting from the starting year onward.
         results = results.query(f"year >= {self.start_year}")
 
         # Prepare dataset for row-wise mean calculation, i.e. calculation of
         # mean anomaly per year-pgid combination
-        results = results.set_index(["pgid", "year"])
+        results = results.set_index(["pgid", "year", "quarter"])
 
         columns = [
             col for col in results.columns if "CLI_longterm_precipitation-anomaly_raw" in col
@@ -572,10 +598,13 @@ class GEEPrecipitationAnomaly(Dataset):
             # don't automatically start  download since those are separate step in the
             # indicator logic that should each be performed deliberately
             assert self.dataset_available, " download/data check has not run, check indicator logic"
-
+            #quarter to number 1,2,3
+            df_event_level["quarter"] = df_event_level["quarter"].apply(
+                lambda x: int(x.split("Q")[-1])
+            )
             df = pd.merge(
-                df_base.reset_index().set_index(["pgid", "year"]),
-                df_event_level.set_index(["pgid", "year"]),
+                df_base.reset_index().set_index(["pgid", "year", "quarter"]),
+                df_event_level.set_index(["pgid", "year", "quarter"]),
                 how="left",
                 left_index=True,
                 right_index=True,
