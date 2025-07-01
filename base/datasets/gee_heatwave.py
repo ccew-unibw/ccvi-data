@@ -7,7 +7,7 @@ import multiprocessing
 from multiprocessing import Pool
 
 
-from base.objects import Dataset, console
+from base.objects import Dataset, GlobalBaseGrid, console
 from utils.index import get_quarter
 from utils.gee_daily import daily_ERA5_download
 
@@ -473,11 +473,14 @@ class GEEHeatwaveData(Dataset):
         self.data_keys = [self.data_key, "countries"]
         super().__init__(*args, **kwargs)
 
-    def download_data(self):
+    def download_data(self, grid: GlobalBaseGrid):
         """Downloads  data from the API.
 
         Downloads the  data from the API and saves it to the processing
         storage. The filename is based on the current date and time.
+        
+        Args:
+            grid: GlobalBaseGrid instance
 
         Returns:
             str: The filename of the downloaded  data.
@@ -492,13 +495,14 @@ class GEEHeatwaveData(Dataset):
         # step1
         print("downloading data")
         daily_ERA5_download(
-            sources_path, "temperature", "temperature_2m_max", "era5_temperature_max"
+            sources_path, "temperature", "temperature_2m_max", "era5_temperature_max", grid
         )
         daily_ERA5_download(
             sources_path,
             "dewpoint_temperature_2m_max",
             "dewpoint_temperature_2m_max",
             "era5_dewpoint_temperature_2m_max",
+            grid
         )
         # step2
         print("Calculate humidex")
@@ -524,7 +528,7 @@ class GEEHeatwaveData(Dataset):
         # beacuse those are the events I keep all the columns
         self.storage.save(df_events, "processing", filename=self.filename)
 
-    def load_data(self):
+    def load_data(self, grid: GlobalBaseGrid):
         """Loads  data, checking for cached processing files first.
 
         Attempts to load a local  copy from the 'processing' storage
@@ -534,6 +538,9 @@ class GEEHeatwaveData(Dataset):
           latest quarter.
         - If `self.local` is False, currently raises NotImplementedError (API access TBD).
         Saves the loaded raw/dump data to the processing storage.
+        
+        Args:
+            grid: GlobalBaseGrid instance
 
         Returns:
             pd.DataFrame: The loaded  event data.
@@ -554,7 +561,7 @@ class GEEHeatwaveData(Dataset):
                         f"{self.last_quarter_date}."
                     )
             else:
-                self.download_data()
+                self.download_data(grid)
                 self.dataset_available = True
                 df_event_level = self.storage.load("processing", filename=self.filename)
                 return df_event_level

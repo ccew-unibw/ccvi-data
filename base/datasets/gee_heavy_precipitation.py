@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
 
-from base.objects import Dataset, console
+from base.objects import Dataset, console, GlobalBaseGrid
 from utils.index import get_quarter
 from utils.gee_daily import daily_ERA5_download
 
@@ -252,11 +252,14 @@ class GEEHeavyPrecipitationData(Dataset):
         self.data_keys = [self.data_key, "countries"]
         super().__init__(*args, **kwargs)
 
-    def download_data(self):
+    def download_data(self, grid: GlobalBaseGrid):
         """Downloads  data from the API.
 
         Downloads the  data from the API and saves it to the processing
         storage. The filename is based on the current date and time.
+        
+        Args:
+            grid: GlobalBaseGrid instance
 
         Returns:
             str: The filename of the downloaded  data.
@@ -270,8 +273,9 @@ class GEEHeavyPrecipitationData(Dataset):
 
         # step1
         print("downloading data")
+        
         daily_ERA5_download(
-            sources_path, "precipitation", "total_precipitation_sum", "era5_precipitation"
+            sources_path, "precipitation", "total_precipitation_sum", "era5_precipitation", grid
         )
         # step2
         print("building threshold")
@@ -294,7 +298,7 @@ class GEEHeavyPrecipitationData(Dataset):
         # beacuse those are the events I keep all the columns
         self.storage.save(df_events, "processing", filename=self.filename)
 
-    def load_data(self):
+    def load_data(self, grid: GlobalBaseGrid):
         """Loads  data, checking for cached processing files first.
 
         Attempts to load a local  copy from the 'processing' storage
@@ -304,6 +308,9 @@ class GEEHeavyPrecipitationData(Dataset):
           latest quarter.
         - If `self.local` is False, currently raises NotImplementedError (API access TBD).
         Saves the loaded raw/dump data to the processing storage.
+        
+        Args:
+            grid: GlobalBaseGrid instance
 
         Returns:
             pd.DataFrame: The loaded  event data.
@@ -322,7 +329,7 @@ class GEEHeavyPrecipitationData(Dataset):
                         f"{self.last_quarter_date}."
                     )
             else:
-                self.download_data()
+                self.download_data(grid)
                 self.dataset_available = True
                 df_event_level = self.storage.load("processing", filename=self.filename)
                 return df_event_level
