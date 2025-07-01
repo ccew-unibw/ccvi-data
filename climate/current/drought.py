@@ -48,17 +48,16 @@ class CliCurrentDrought(Indicator, NormalizationMixin):
         from base.datasets.spei import process_current_drought
 
         # make the 1y indicator aggregation
-        df = df_preprocessed[["lat", "lon", "pgid", "time"]]
-        df["year"] = df["time"].dt.year
-        df["quarter"] = df["time"].dt.quarter
-
         storage = self.event_data.storage.storage_paths["processing"]
         spei_fp = self.event_data.storage.build_filepath("processing", filename="preprocessed")
 
         spei_current = process_current_drought(storage, spei_fp, "")
 
-        spei_current = df.merge(spei_current, on=["pgid", "year", "quarter"], how="left")
-        spei_current = spei_current[["pgid", "year", "quarter", "time", "lat", "lon", "count"]]
+        df = df_preprocessed[["pgid", "lat", "lon"]].drop_duplicates()
+
+        spei_current = spei_current.merge(df, on="pgid", how="left")
+
+        spei_current = spei_current[["pgid", "year", "quarter", "lat", "lon", "count"]]
         spei_current.rename(columns={"count": f"{self.composite_id}_raw"}, inplace=True)
 
         return spei_current

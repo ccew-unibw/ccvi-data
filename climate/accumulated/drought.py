@@ -47,17 +47,17 @@ class CliAccumulatedDrought(Indicator, NormalizationMixin):
     def create_indicator(self, df_preprocessed: pd.DataFrame) -> pd.DataFrame:
         from base.datasets.spei import process_accumulated_drought
 
-        df = df_preprocessed[["lat", "lon", "pgid", "time"]]
-        df["year"] = df["time"].dt.year
-        df["quarter"] = df["time"].dt.quarter
-
         storage = self.event_data.storage.storage_paths["processing"]
         spei_fp = self.event_data.storage.build_filepath("processing", filename="preprocessed")
 
         spei_acc = process_accumulated_drought(storage, spei_fp, "")
 
-        spei_acc = df.merge(spei_acc, on=["pgid", "year", "quarter"], how="left")
-        spei_acc = spei_acc[["pgid", "year", "quarter", "time", "lat", "lon", "count"]]
+        df = df_preprocessed[["pgid", "lat", "lon"]].drop_duplicates()
+
+        spei_acc = spei_acc.merge(df, on="pgid", how="left")
+
+
+        spei_acc = spei_acc[["pgid", "year", "quarter", "lat", "lon", "count"]]
         spei_acc.rename(columns={"count": f"{self.composite_id}_raw"}, inplace=True)
 
         return spei_acc

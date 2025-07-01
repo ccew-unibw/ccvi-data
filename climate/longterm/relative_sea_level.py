@@ -1,12 +1,3 @@
-import os
-import sys
-
-# Automatically determine the home directory and append ccvi-data
-ccvi_path = os.path.join(os.path.expanduser("~"), "ccvi-data")
-if ccvi_path not in sys.path:
-    sys.path.append(ccvi_path)
-    os.chdir(ccvi_path)
-
 import pandas as pd
 from utils.index import get_quarter
 

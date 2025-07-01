@@ -117,7 +117,7 @@ def f(x):
 
         doneIt = False
         if not os.path.exists(outfile):
-            print(f"downlading: {outfile}")
+            print(f"downloading: {outfile}")
 
             # ee.Initialize(credentials)
             credentials._authorize()

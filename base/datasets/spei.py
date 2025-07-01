@@ -353,30 +353,8 @@ def mask_spei(data: pd.DataFrame, columns: list[str], storage: str, threshold: f
 
 def process_current_drought(storage: str, spei_fp: str, out_fp: str) -> list:
     spei = pd.read_parquet(spei_fp)
-    # We've got exposure data back to 2000. Hence, we can only calculate current droughts
-    # starting from 2000. For the rolling window, we need to load data from 1999 onwards.
-    spei.query("time.dt.year >= 1999", inplace=True)
-    spei["year"] = spei.time.dt.year
-    spei["quarter"] = spei.time.dt.quarter
-    spei = spei.replace([np.inf, -np.inf], np.nan)  # Turn inf into nan
-    # Deal with missing values by replacing them with the mean of all surrounding grid cells
-    missings = spei.query("spei_3.isna()")
-    pgids = missings.pgid.apply(get_neighboring_cells)
-    queries = list(zip(pgids, missings.time))
-    spei_unique = spei.drop_duplicates(subset=["time", "pgid"])
-    spei_xr = spei_unique.set_index(["time", "pgid"])["spei_3"].to_xarray()
-    # spei_xr = spei.set_index(["time", "pgid"])["spei_3"].to_xarray()
-    means = [
-        spei_xr.sel(time=time, pgid=spei_xr.pgid.isin(pgids)).mean(skipna=True).item()
-        for pgids, time in tqdm(queries)
-    ]
-    spei.loc[missings.index, "spei_3"] = means
-    # Make sure that the df is sorted properly
-    spei = spei.sort_values(["pgid", "time"])
-
-    # Calculate current drought score on a quarterly basis (12 month window)
-    # Calculate quarterly mean and then move up the 4 quarters and calculate yearly mean
-
+    
+    print("-- spei calculating lamda ...")
     spei["drought_count"] = spei["spei_3"].apply(lambda x: x if x < -1 else 0)
     spei["drought_count"] = spei["drought_count"] * (-1)
     spei["drought_count"] = spei["drought_count"].fillna(0)
@@ -417,34 +395,13 @@ def process_current_drought(storage: str, spei_fp: str, out_fp: str) -> list:
         }
     )
 
-    # Apply masking after count generation
+    print("-- Apply masking after count generation")
     final_df = mask_spei(final_df, ["count"], storage)
     return final_df
 
 
 def process_accumulated_drought(storage: str, spei_fp: str, out_fp: str) -> list:
     spei = pd.read_parquet(spei_fp)
-    # We've got exposure data back to 2000. Hence, we can only calculate accumulated droughts
-    # starting from 2000. For the accumulation, we need to load data from 2000 - 7 onwards.
-    spei.query("time.dt.year >= 1993", inplace=True)
-    spei["year"] = spei.time.dt.year
-    spei["month"] = spei.time.dt.month
-    spei["quarter"] = spei.time.dt.quarter
-    spei = spei.replace([np.inf, -np.inf], np.nan)  # Turn inf into nan
-    # Deal with missing values by replacing them with the mean of all surrounding grid cells
-    missings = spei.query("spei_3.isna()")
-    pgids = missings.pgid.apply(get_neighboring_cells)
-    queries = list(zip(pgids, missings.time))
-    spei_unique = spei.drop_duplicates(subset=["time", "pgid"])
-    spei_xr = spei_unique.set_index(["time", "pgid"])["spei_3"].to_xarray()
-    # spei_xr = spei.set_index(["time", "pgid"])["spei_3"].to_xarray()
-    means = [
-        spei_xr.sel(time=time, pgid=spei_xr.pgid.isin(pgids)).mean(skipna=True).item()
-        for pgids, time in tqdm(queries)
-    ]
-    spei.loc[missings.index, "spei_3"] = means
-    # Make sure that the df is sorted properly
-    spei = spei.sort_values(["pgid", "time"])
     # Count droughts
     spei["drought_count"] = (spei["spei_3"] <= -1).astype(int)
     # Sum by quarter first and then by 7*4 quarters
@@ -800,24 +757,7 @@ class SPEIData(Dataset):
                 # TODO: this is also very opinionated; let's add some more config options in the future
                 console.print(":droplet: Creating land cover mask for SPEI...")
                 create_spei_mask(client, storage, force)
-                # out_fp = get_storage_location('climate_raw')
-                # out_fp = sources_path
-                # if targets == "all":
-                #    console.print(
-                #        ":earth_africa: Creating the following indicators...",
-                #        ["CLI_current_drought", "CLI_accumulated_drought"],
-                #    )
-                #    current_drought_fp = process_current_drought(storage, spei_fp, out_fp)
-                #    accumulated_drought_fp = process_accumulated_drought(storage, spei_fp, out_fp)
-                #    out = accumulated_drought_fp + current_drought_fp
-                # if targets == "dim1":
-                #    console.print(":earth_africa: Creating CLI_current_drought...")
-                #    current_drought_fp = process_current_drought(storage, spei_fp, out_fp)
-                #    out = current_drought_fp
-                # if targets == "dim2":
-                #    console.print(":earth_africa: Creating CLI_accumulated_drought...")
-                #    accumulated_drought_fp = process_accumulated_drought(storage, spei_fp, out_fp)
-                #    out = accumulated_drought_fp
+                
 
             console.print(":droplet: Processing SPEI indicators... [bold green]DONE[/bold green]")
 
@@ -902,23 +842,41 @@ class SPEIData(Dataset):
 
             # quarter as number 1,2,3,4
 
-            df = df_base
-            df_spei = df_event_level
-            df_spei["date"] = pd.to_datetime(df_spei["date"])
-            df["time"] = pd.to_datetime(df["time"])
-            df = df.reset_index().merge(
-                df_spei.reset_index(),
+            df = df_base.reset_index()[['pgid', 'lat', 'lon']]
+            df = df.drop_duplicates(subset=['pgid','lat', 'lon'])
+            
+            spei = df_event_level
+            spei['time']= spei['date']
+            # We've got exposure data back to 2000. Hence, we can only calculate accumulated droughts
+            # starting from 2000. For the accumulation, we need to load data from 2000 - 7 onwards.
+            spei.query("time.dt.year >= 1993", inplace=True)
+            spei["year"] = spei.time.dt.year
+            spei["month"] = spei.time.dt.month
+            spei["quarter"] = spei.time.dt.quarter
+            spei = spei.replace([np.inf, -np.inf], np.nan)  # Turn inf into nan
+            # Deal with missing values by replacing them with the mean of all surrounding grid cells
+            missings = spei.query("spei_3.isna()")
+            pgids = missings.pgid.apply(get_neighboring_cells)
+            queries = list(zip(pgids, missings.time))
+            #spei_unique = spei.drop_duplicates(subset=["time", "pgid"])
+            #spei_xr = spei_unique.set_index(["time", "pgid"])["spei_3"].to_xarray()
+            spei_xr = spei.set_index(["time", "pgid"])["spei_3"].to_xarray()
+            means = [
+                spei_xr.sel(time=time, pgid=spei_xr.pgid.isin(pgids)).mean(skipna=True).item()
+                for pgids, time in tqdm(queries)
+            ]
+            spei.loc[missings.index, "spei_3"] = means
+            # Make sure that the df is sorted properly
+            spei = spei.sort_values(["pgid", "time"])
+
+            spei = spei.merge(
+                df,
                 how="left",
-                left_on=["pgid", "time"],
-                right_on=["pgid", "date"],
+                on="pgid",
             )
-
-            df = df[["pgid", "year", "quarter", "lat", "lon", "spei_3", "time"]]
-
-            df["time"] = pd.to_datetime(df["time"])
-
-            df.to_parquet(fp_preprocessed)
-        return df
+            
+            spei.to_parquet(fp_preprocessed)
+        return spei
 
 
 # test class
