@@ -46,7 +46,16 @@ def get_image_to_file(dataset, outputpath):
 
 
 def geotiff_to_pandas_over_prio_grid(geotiff):
-    unique_pgid = pd.read_parquet("data/base_grid_prio.parquet").reset_index()
+    import yaml
+
+    # Read storage_path from config.yaml
+    config_path = ("config.yaml")
+    with open(config_path, "r") as f:
+        config = yaml.safe_load(f)
+    storage_path = config.get("global").get("storage_path")
+
+    base_grid_prio_path = f"{storage_path}/output/base_grid_prio.parquet"
+    unique_pgid = pd.read_parquet(base_grid_prio_path).reset_index()
     ds = xr.open_dataset(geotiff, engine="rasterio")
     df = ds.to_dataframe().reset_index()
     df.rename(columns={"x": "lon", "y": "lat"}, inplace=True)
