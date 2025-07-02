@@ -103,9 +103,9 @@ def download_latest(year, source_path, EODIS_NASA_GOV):
                     else:
                         model = "MODIS_SP"
                     date_to_download = (datei.strftime("%Y-%m-%d"),)
-                    if not os.path.exists(f"{source_path}/FIRMS/MODIS/modis/{year}"):
-                        os.makedirs(f"{source_path}/FIRMS/MODIS/modis/{year}")
-                    outputfile = f"{source_path}/FIRMS/MODIS/modis/{year}/{date_to_download[0]}.csv"
+                    if not os.path.exists(f"{source_path}/FIRMS/MODIS/modis/{date_to_download[0].split("-")[0]}"):
+                        os.makedirs(f"{source_path}/FIRMS/MODIS/modis/{date_to_download[0].split("-")[0]}")
+                    outputfile = f"{source_path}/FIRMS/MODIS/modis/{date_to_download[0].split("-")[0]}/{date_to_download[0]}.csv"
                     print(f"downlaoding {date_to_download} from {model}", flush=True)
                     if not os.path.exists(outputfile):
                         urlquery = f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/{EODIS_NASA_GOV}/{model}/-180,-90,180,90/1/{date_to_download[0]}"
@@ -119,7 +119,7 @@ def download_latest(year, source_path, EODIS_NASA_GOV):
                             )
 
                         outputfile = (
-                            f"{source_path}/FIRMS/MODIS/modis/{year}/{date_to_download[0]}.csv"
+                            f"{source_path}/FIRMS/MODIS/modis/{date_to_download[0].split("-")[0]}/{date_to_download[0]}.csv"
                         )
                         open(outputfile, "wb").write(response.content)
 
