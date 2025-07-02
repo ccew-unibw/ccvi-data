@@ -21,7 +21,7 @@ class CliAccumulatedHeatwave(Indicator, NormalizationMixin):
         super().__init__(pillar=pillar, dim=dim, id=id, config=config, grid=grid)
 
     def load_data(self) -> pd.DataFrame:
-        df = self.event_data.load_data()
+        df = self.event_data.load_data(self.grid)
         return df
 
     def preprocess_data(self, df_event_data: pd.DataFrame) -> pd.DataFrame:

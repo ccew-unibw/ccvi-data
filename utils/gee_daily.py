@@ -8,6 +8,8 @@ import warnings
 import requests
 import xarray as xr
 
+from base.objects import GlobalBaseGrid
+
 
 def get_image_url(dataset):
     image = (
@@ -45,8 +47,8 @@ def get_image_to_file(dataset, outputpath):
         return 0
 
 
-def geotiff_to_pandas_over_prio_grid(geotiff):
-    unique_pgid = pd.read_parquet("data/base_grid_prio.parquet").reset_index()
+def geotiff_to_pandas_over_prio_grid(geotiff, base_grid: pd.DataFrame):
+    unique_pgid = base_grid.reset_index()
     ds = xr.open_dataset(geotiff, engine="rasterio")
     df = ds.to_dataframe().reset_index()
     df.rename(columns={"x": "lon", "y": "lat"}, inplace=True)
@@ -80,6 +82,7 @@ def parallel_download(x):
         credentials = x["GOOGLEClient"]
         variable = x["variable"]
         subfolder = x["subfolder"]
+        base_grid = x["base_grid"]
 
         if not os.path.exists(f"{temp_files}/raw/{subfolder}/{startDate[:4]}"):
             os.makedirs(f"{temp_files}/raw/{subfolder}/{startDate[:4]}")
@@ -106,7 +109,7 @@ def parallel_download(x):
 
             if test_image_availability == 1:
                 try:
-                    df = geotiff_to_pandas_over_prio_grid(imagepath)
+                    df = geotiff_to_pandas_over_prio_grid(imagepath, base_grid)
                     df["quarter"] = pd.to_datetime(startDate, format="%Y-%m-%d").to_period("Q")
                     df["quarter"] = df["quarter"].astype(str)
                     df["q"] = df["quarter"].str.strip().str[-2:]
@@ -137,7 +140,7 @@ def parallel_download(x):
         raise e
 
 
-def daily_ERA5_download(sources_path, maindir, variable, subfolder):
+def daily_ERA5_download(sources_path, maindir, variable, subfolder, grid: GlobalBaseGrid):
     import multiprocessing
     from multiprocessing import Pool
     from utils.gee import GEEClient
@@ -176,7 +179,7 @@ def daily_ERA5_download(sources_path, maindir, variable, subfolder):
 
     # Getting List of Days using pandas
     datesRange = pd.date_range(startDate, endDate - timedelta(days=1), freq="d")
-
+    base_grid = grid.load()
     for datei in datesRange:
         endDatei = datei + timedelta(days=1)
 
@@ -187,6 +190,7 @@ def daily_ERA5_download(sources_path, maindir, variable, subfolder):
             "GOOGLEClient": client,
             "variable": variable,
             "subfolder": subfolder,
+            "base_grid": base_grid
         }
         params.append(parx)
 
