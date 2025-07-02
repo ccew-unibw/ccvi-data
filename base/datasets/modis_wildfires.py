@@ -102,13 +102,13 @@ def download_latest(year, source_path, EODIS_NASA_GOV):
                         model = "MODIS_NRT"
                     else:
                         model = "MODIS_SP"
-                    date_to_download = (datei.strftime("%Y-%m-%d"),)
-                    if not os.path.exists(f"{source_path}/FIRMS/MODIS/modis/{date_to_download[0].split("-")[0]}"):
-                        os.makedirs(f"{source_path}/FIRMS/MODIS/modis/{date_to_download[0].split("-")[0]}")
-                    outputfile = f"{source_path}/FIRMS/MODIS/modis/{date_to_download[0].split("-")[0]}/{date_to_download[0]}.csv"
+                    date_to_download = datei.strftime("%Y-%m-%d")
+                    folder = f"{source_path}/FIRMS/MODIS/modis/{datei.year}"
+                    os.makedirs(folder, exist_ok=True)
+                    outputfile = f"{folder}/{date_to_download}.csv"
                     print(f"downlaoding {date_to_download} from {model}", flush=True)
                     if not os.path.exists(outputfile):
-                        urlquery = f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/{EODIS_NASA_GOV}/{model}/-180,-90,180,90/1/{date_to_download[0]}"
+                        urlquery = f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/{EODIS_NASA_GOV}/{model}/-180,-90,180,90/1/{date_to_download}"
                         response = requests.get(urlquery)
                         if "Exceeding allowed transaction limit" in str(response.content):
                             print(
@@ -117,10 +117,6 @@ def download_latest(year, source_path, EODIS_NASA_GOV):
                             raise Exception(
                                 "Exceeding allowed transaction limit whait 10 minutes",
                             )
-
-                        outputfile = (
-                            f"{source_path}/FIRMS/MODIS/modis/{date_to_download[0].split("-")[0]}/{date_to_download[0]}.csv"
-                        )
                         open(outputfile, "wb").write(response.content)
 
                 global allJobsDone
