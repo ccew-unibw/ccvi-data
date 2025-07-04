@@ -274,9 +274,11 @@ class GEEHeavyPrecipitationData(Dataset):
         # step1
         print("downloading data")
         
-        daily_ERA5_download(
+        out_status = daily_ERA5_download(
             sources_path, "precipitation", "total_precipitation_sum", "era5_precipitation", grid
         )
+        if out_status is False:
+            raise Exception("Error downloading precipitation data")
         # step2
         print("building threshold")
         dailyprecipitation_buildthreshold(sources_path)

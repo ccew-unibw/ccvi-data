@@ -494,9 +494,11 @@ class GEEHeatwaveData(Dataset):
 
         # step1
         print("downloading data")
-        daily_ERA5_download(
+        out_status = daily_ERA5_download(
             sources_path, "temperature", "temperature_2m_max", "era5_temperature_max", grid
         )
+        if out_status is False:
+            raise Exception("Error downloading temperature data")
         daily_ERA5_download(
             sources_path,
             "dewpoint_temperature_2m_max",
