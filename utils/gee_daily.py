@@ -132,8 +132,10 @@ def parallel_download(x):
                         os.remove(imagepath)
                     except:
                         pass
-                    pass
-
+                    raise e  # Re-raise to stop processing
+            else:
+                # Raise FileNotFoundError immediately when image download fails
+                raise FileNotFoundError(f"Failed to download image for date {startDate}. Image not available or download failed.")
             # raise ValueError("An error occurred!")  # Example error
     except Exception as e:
         # Catch the exception and re-raise it to be caught in the main process
@@ -141,8 +143,6 @@ def parallel_download(x):
 
 
 def daily_ERA5_download(sources_path, maindir, variable, subfolder, grid: GlobalBaseGrid):
-    import multiprocessing
-    from multiprocessing import Pool
     from utils.gee import GEEClient
 
     warnings.filterwarnings("ignore")
@@ -194,22 +194,12 @@ def daily_ERA5_download(sources_path, maindir, variable, subfolder, grid: Global
         }
         params.append(parx)
 
-    # set pool accoring to the number of cores
-    # determine the number of cores
-    num_cores = multiprocessing.cpu_count()
-    print(f"Number of cores: {num_cores}")
-    # Create a pool of workers
-    # Use the number of cores - 1 to leave one core free
-
-    with Pool(num_cores - 1) as p:
-        # with Pool(1) as p:
-        try:
-            p.map(parallel_download, params)
-        except Exception as e:
-            # Terminate the pool and handle the error
-            p.terminate()
-
-            print(f"An error occurred: {e}")
-            return False
+    # Use a normal for loop instead of multiprocessing
+    try:
+        for param in params:
+            parallel_download(param)
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return False
 
     return True
