@@ -47,7 +47,7 @@ from vulnerability.socioeconomic import (
     VulSocioeconomicDeprivation,
     VulSocioeconomicHealth,
     VulSocioeconomicInequality,
-    VulSocioeconomicInsecurity,
+    VulSocioeconomicHunger,
 )
 from vulnerability.political import (
     VulPoliticalGender,
@@ -105,7 +105,7 @@ vul_socioeconomic_deprivation = VulSocioeconomicDeprivation(config=config, grid=
 vul_socioeconomic_education = VulSocioeconomicEducation(config=config, grid=base_grid)
 vul_socioeconomic_health = VulSocioeconomicHealth(config=config, grid=base_grid)
 vul_socioeconomic_inequality = VulSocioeconomicInequality(config=config, grid=base_grid)
-vul_socioeconomic_insecurity = VulSocioeconomicInsecurity(config=config, grid=base_grid)
+vul_socioeconomic_insecurity = VulSocioeconomicHunger(config=config, grid=base_grid)
 vul_socioeconomic = Dimension(
     "VUL",
     "socioeconomic",
