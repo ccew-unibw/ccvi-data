@@ -9,6 +9,7 @@ from base.objects import (
     AggregateScore,
     StorageManager,
 )
+from utils.index import get_quarter
 
 # conflict indicators
 from conflict.level import ConLevelIntensity, ConLevelSurrounding
@@ -40,7 +41,6 @@ from climate.longterm import (
 from climate.shared import ClimateDimension
 
 # vulnerability indicators
-from utils.index import get_quarter
 from vulnerability.socioeconomic import (
     VulSocioeconomicAgriculture,
     VulSocioeconomicEducation,
@@ -387,27 +387,27 @@ if __name__ == "__main__":
     # con_pillar.run()
 
     ## climate dim 1
-    # cli_current_floods.run(regenerate)
-    # cli_current_cyclones.run(regenerate)
-    # cli_current_heavy_precipitation.run(regenerate)
-    # cli_current_heatwave.run(regenerate)
-    # cli_current_wildfires.run(regenerate)
-    # cli_current_drought.run(regenerate)
+    # cli_current_floods.run()
+    # cli_current_cyclones.run()
+    # cli_current_heavy_precipitation.run()
+    # cli_current_heatwave.run()
+    # cli_current_wildfires.run()
+    # cli_current_drought.run()
     # cli_current.run()
 
     ## climate dim 2
-    # cli_accumulated_floods.run(regenerate)
-    # cli_accumulated_cyclones.run(regenerate)
-    # cli_accumulated_heavy_precipitation.run(regenerate)
-    # cli_accumulated_heatwave.run(regenerate)
-    # cli_accumulated_wildfires.run(regenerate)
-    # cli_accumulated_drought.run(regenerate)
+    # cli_accumulated_floods.run()
+    # cli_accumulated_cyclones.run()
+    # cli_accumulated_heavy_precipitation.run()
+    # cli_accumulated_heatwave.run()
+    # cli_accumulated_wildfires.run()
+    # cli_accumulated_drought.run()
     # cli_accumulated.run()
 
     ## climate dim 3
-    # cli_longterm_relative_sea_level.run(regenerate)
-    # cli_longterm_temperature_anomaly.run(regenerate)
-    # cli_longterm_precipitation_anomaly.run(regenerate)
+    # cli_longterm_relative_sea_level.run()
+    # cli_longterm_temperature_anomaly.run()
+    # cli_longterm_precipitation_anomaly.run()
     # cli_longterm.run()
 
     ## climate pillar
