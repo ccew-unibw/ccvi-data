@@ -105,7 +105,7 @@ vul_socioeconomic_deprivation = VulSocioeconomicDeprivation(config=config, grid=
 vul_socioeconomic_education = VulSocioeconomicEducation(config=config, grid=base_grid)
 vul_socioeconomic_health = VulSocioeconomicHealth(config=config, grid=base_grid)
 vul_socioeconomic_inequality = VulSocioeconomicInequality(config=config, grid=base_grid)
-vul_socioeconomic_insecurity = VulSocioeconomicHunger(config=config, grid=base_grid)
+vul_socioeconomic_hunger = VulSocioeconomicHunger(config=config, grid=base_grid)
 vul_socioeconomic = Dimension(
     "VUL",
     "socioeconomic",
@@ -116,7 +116,7 @@ vul_socioeconomic = Dimension(
         vul_socioeconomic_education,
         vul_socioeconomic_health,
         vul_socioeconomic_inequality,
-        vul_socioeconomic_insecurity,
+        vul_socioeconomic_hunger,
     ],
 )
 # Dim "political"
@@ -419,7 +419,7 @@ if __name__ == "__main__":
     # vul_socioeconomic_education.run()
     # vul_socioeconomic_health.run()
     # vul_socioeconomic_inequality.run()
-    # vul_socioeconomic_insecurity.run()
+    # vul_socioeconomic_hunger.run()
     # vul_socioeconomic.run()
 
     ## Vulnerability dim "political"
