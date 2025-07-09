@@ -5,10 +5,11 @@
 *.nc
 *.geojson
 *.rds
-*test*/
+*test*
 *.ipynb
-data/
+data
 gee_service_creds.json
+tool
 
 
 # Byte-compiled / optimized / DLL files
