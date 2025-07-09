@@ -281,9 +281,7 @@ class PrecipitationAnomaly(object):
 
         # Aggregate from months to years
         self.baseline = (
-            self.baseline.groupby(["pgid"])
-            .agg({"total_precipitation_sum": "mean"})
-            .reset_index()
+            self.baseline.groupby(["pgid"]).agg({"total_precipitation_sum": "mean"}).reset_index()
         )
         self.baseline = self.baseline.rename(
             columns={"total_precipitation_sum": "total_precipitation_sum_baseline"}
@@ -296,26 +294,24 @@ class PrecipitationAnomaly(object):
         )
 
         # Sort the data by pgid and quarter to ensure proper order
-        self.current = self.current.sort_values(['pgid', 'quarter'])
+        self.current = self.current.sort_values(["pgid", "quarter"])
 
         # Calculate 12-month (4-quarter) rolling average grouped by pgid
-        self.current['total_precipitation_12m_avg'] = (
-            self.current.groupby('pgid')['total_precipitation_sum']
+        self.current["total_precipitation_12m_avg"] = (
+            self.current.groupby("pgid")["total_precipitation_sum"]
             .rolling(window=4, min_periods=1)
             .mean()
             .reset_index(level=0, drop=True)
         )
 
-
         # Alternative method if you want to require at least 4 quarters of data
         # (this will show NaN for the first 3 quarters of each pgid)
-        self.current['total_precipitation_12m_avg_strict'] = (
-            self.current.groupby('pgid')['total_precipitation_sum']
+        self.current["total_precipitation_12m_avg_strict"] = (
+            self.current.groupby("pgid")["total_precipitation_sum"]
             .rolling(window=4, min_periods=4)
             .mean()
             .reset_index(level=0, drop=True)
         )
-
 
         return None
 
@@ -325,13 +321,13 @@ class PrecipitationAnomaly(object):
         """
 
         # Calculate average over sum per year per pgid
-        #self.baseline = (
+        # self.baseline = (
         #    self.baseline.groupby("pgid").agg({"total_precipitation_sum": "mean"}).reset_index()
-        #)
+        # )
 
-        #self.baseline = self.baseline.rename(
+        # self.baseline = self.baseline.rename(
         #    columns={"total_precipitation_sum": "total_precipitation_mean_baseline"}
-        #)
+        # )
 
         return None
 
@@ -369,7 +365,6 @@ class PrecipitationAnomaly(object):
                 :, "CLI_longterm_precipitation-anomaly_raw"
             ].shift(i)
 
-        
         # Filter the data to only contain everyting from the starting year onward.
         results = results.query(f"year >= {self.start_year}")
 
@@ -598,7 +593,7 @@ class GEEPrecipitationAnomaly(Dataset):
             # don't automatically start  download since those are separate step in the
             # indicator logic that should each be performed deliberately
             assert self.dataset_available, " download/data check has not run, check indicator logic"
-            #quarter to number 1,2,3
+            # quarter to number 1,2,3
             df_event_level["quarter"] = df_event_level["quarter"].apply(
                 lambda x: int(x.split("Q")[-1])
             )

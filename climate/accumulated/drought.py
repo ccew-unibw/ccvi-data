@@ -56,7 +56,6 @@ class CliAccumulatedDrought(Indicator, NormalizationMixin):
 
         spei_acc = spei_acc.merge(df, on="pgid", how="left")
 
-
         spei_acc = spei_acc[["pgid", "year", "quarter", "lat", "lon", "count"]]
         spei_acc.rename(columns={"count": f"{self.composite_id}_raw"}, inplace=True)
 

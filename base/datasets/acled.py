@@ -543,7 +543,7 @@ class ACLEDData(Dataset):
         # df_start_dates.sort_values('country').to_csv('data/acled_coverage.csv', index=False)
 
         # read countries based on GeoBoundaries for matching with start dates and grid
-        df_countries = self.grid.basemap[['iso3', 'name']].copy()
+        df_countries = self.grid.basemap[["iso3", "name"]].copy()
         df_countries = df_countries.loc[df_countries["iso3"].isin(df_data["iso3"].unique())]
         df_countries = df_countries.merge(
             df_start_dates, how="left", left_on="name", right_on="country"

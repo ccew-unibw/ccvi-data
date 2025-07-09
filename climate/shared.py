@@ -301,7 +301,9 @@ class NormalizationMixin:
         )
 
         # Set index
-        df_indicator = df_indicator.reset_index().set_index(["pgid", "year", "quarter"]).sort_index()
+        df_indicator = (
+            df_indicator.reset_index().set_index(["pgid", "year", "quarter"]).sort_index()
+        )
         df_indicator = df_indicator.loc[
             (slice(None), slice(start_year, None), slice(None)), slice(None)
         ]

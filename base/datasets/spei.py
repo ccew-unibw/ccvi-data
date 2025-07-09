@@ -377,7 +377,7 @@ def mask_spei(data: pd.DataFrame, columns: list[str], storage: str, threshold: f
 
 def process_current_drought(storage: str, spei_fp: str, out_fp: str) -> list:
     spei = pd.read_parquet(spei_fp)
-    
+
     print("-- spei calculating lamda ...")
     spei["drought_count"] = spei["spei_3"].apply(lambda x: x if x < -1 else 0)
     spei["drought_count"] = spei["drought_count"] * (-1)
@@ -781,7 +781,6 @@ class SPEIData(Dataset):
                 # TODO: this is also very opinionated; let's add some more config options in the future
                 console.print(":droplet: Creating land cover mask for SPEI...")
                 create_spei_mask(client, storage, force)
-                
 
             console.print(":droplet: Processing SPEI indicators... [bold green]DONE[/bold green]")
 
@@ -866,11 +865,11 @@ class SPEIData(Dataset):
 
             # quarter as number 1,2,3,4
 
-            df = df_base.reset_index()[['pgid', 'lat', 'lon']]
-            df = df.drop_duplicates(subset=['pgid','lat', 'lon'])
-            
+            df = df_base.reset_index()[["pgid", "lat", "lon"]]
+            df = df.drop_duplicates(subset=["pgid", "lat", "lon"])
+
             spei = df_event_level
-            spei['time']= spei['date']
+            spei["time"] = spei["date"]
             # We've got exposure data back to 2000. Hence, we can only calculate accumulated droughts
             # starting from 2000. For the accumulation, we need to load data from 2000 - 7 onwards.
             spei.query("time.dt.year >= 1993", inplace=True)
@@ -882,8 +881,8 @@ class SPEIData(Dataset):
             missings = spei.query("spei_3.isna()")
             pgids = missings.pgid.apply(get_neighboring_cells)
             queries = list(zip(pgids, missings.time))
-            #spei_unique = spei.drop_duplicates(subset=["time", "pgid"])
-            #spei_xr = spei_unique.set_index(["time", "pgid"])["spei_3"].to_xarray()
+            # spei_unique = spei.drop_duplicates(subset=["time", "pgid"])
+            # spei_xr = spei_unique.set_index(["time", "pgid"])["spei_3"].to_xarray()
             spei_xr = spei.set_index(["time", "pgid"])["spei_3"].to_xarray()
             means = [
                 spei_xr.sel(time=time, pgid=spei_xr.pgid.isin(pgids)).mean(skipna=True).item()
@@ -898,7 +897,7 @@ class SPEIData(Dataset):
                 how="left",
                 on="pgid",
             )
-            
+
             spei.to_parquet(fp_preprocessed)
         return spei
 

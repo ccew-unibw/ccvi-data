@@ -584,7 +584,7 @@ class GlobalBaseGrid:
         self.storage = StorageManager(
             storage_base_path=self.global_config["storage_path"],
             requires_processing_storage=True,
-            processing_folder="base_grid"
+            processing_folder="base_grid",
         )
         for key in self.config:
             self.storage.check_exists(self.config[key])
@@ -671,15 +671,17 @@ class GlobalBaseGrid:
             gpd.GeoDataFrame: A GeoDataFrame containing the processed country
                 geometries.
         """
-        
-        fp_basemap = self.storage.build_filepath('processing', "basemap")
+
+        fp_basemap = self.storage.build_filepath("processing", "basemap")
         if os.path.exists(fp_basemap) and not self.regenerate:
             cgaz = gpd.read_parquet(fp_basemap)
         else:
             cgaz = gpd.read_file(self.config["countries"])
             cgaz["geometry"] = cgaz["geometry"].make_valid()
             # merge palestine and gaza as this is often not treated separately
-            palestine_geom = cgaz.loc[cgaz["shapeName"].isin(["West Bank", "Gaza Strip"])].union_all()
+            palestine_geom = cgaz.loc[
+                cgaz["shapeName"].isin(["West Bank", "Gaza Strip"])
+            ].union_all()
             palestine = gpd.GeoDataFrame(
                 {
                     "shapeGroup": ["PSE"],
@@ -1139,10 +1141,10 @@ class AggregateScore:
             load_additional_values (bool): Flag whether to load the component by ID
                 only or include any additional (raw) values stored. Defaults to False.
             load_kwargs: **kwargs for storage.load()
-            
+
         Returns:
             pd.DataFrame: A combined DataFrame with all (direct) components of the
-                aggregate score depending on the boolean flag (i.e. Indicators 
+                aggregate score depending on the boolean flag (i.e. Indicators
                 for Dimensions, Dimension scores for Pillars by default).
         """
         dfs = []
@@ -1544,8 +1546,8 @@ class Pillar(AggregateScore):
     def validate_dimension_input(self, dimensions: list[Dimension], skip_run: bool):
         """Validate the input list of dimensions.
 
-        Ensures that each dimension belongs to the pillar based on its identfier, 
-        and checks for duplicate dimensions. Calls run on all dimensions that 
+        Ensures that each dimension belongs to the pillar based on its identfier,
+        and checks for duplicate dimensions. Calls run on all dimensions that
         have not yet been generated with the respective instance.
 
         Args:
@@ -1565,7 +1567,9 @@ class Pillar(AggregateScore):
         for d in dimensions:
             try:
                 assert d.generated
-                self.console.print(f'Dimension "{d.composite_id}" already generated with this instance.')
+                self.console.print(
+                    f'Dimension "{d.composite_id}" already generated with this instance.'
+                )
             except AssertionError:
                 d.run(skip_run)
 
@@ -1573,7 +1577,7 @@ class Pillar(AggregateScore):
         """Executes the full workflow for calculating and saving the dimension score.
 
         Validates input indicators (running them if needed), loads indicator data,
-        checks generation status (skipping if `regenerate` is False and already 
+        checks generation status (skipping if `regenerate` is False and already
         generated), aggregates the indicators, performs sanity checks, and saves
         the final pillar score.
 

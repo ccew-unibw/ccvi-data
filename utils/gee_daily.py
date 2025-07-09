@@ -135,7 +135,9 @@ def parallel_download(x):
                     raise e  # Re-raise to stop processing
             else:
                 # Raise FileNotFoundError immediately when image download fails
-                raise FileNotFoundError(f"Failed to download image for date {startDate}. Image not available or download failed.")
+                raise FileNotFoundError(
+                    f"Failed to download image for date {startDate}. Image not available or download failed."
+                )
             # raise ValueError("An error occurred!")  # Example error
     except Exception as e:
         # Catch the exception and re-raise it to be caught in the main process
@@ -190,7 +192,7 @@ def daily_ERA5_download(sources_path, maindir, variable, subfolder, grid: Global
             "GOOGLEClient": client,
             "variable": variable,
             "subfolder": subfolder,
-            "base_grid": base_grid
+            "base_grid": base_grid,
         }
         params.append(parx)
 
