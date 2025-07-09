@@ -17,7 +17,7 @@ class ConLevelSurrounding(Indicator, NormalizationMixin):
         id: str = "surrounding",
     ):
         """Params defining indicator's place in index set to designed hierarchy by default"""
-        self.acled = ACLEDData(config=config)
+        self.acled = ACLEDData(config=config, grid=grid)
         super().__init__(pillar=pillar, dim=dim, id=id, config=config, grid=grid)
 
     def load_data(self) -> pd.DataFrame:

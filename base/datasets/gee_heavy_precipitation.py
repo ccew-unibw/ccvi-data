@@ -257,7 +257,7 @@ class GEEHeavyPrecipitationData(Dataset):
 
         Downloads the  data from the API and saves it to the processing
         storage. The filename is based on the current date and time.
-        
+
         Args:
             grid: GlobalBaseGrid instance
 
@@ -273,7 +273,7 @@ class GEEHeavyPrecipitationData(Dataset):
 
         # step1
         print("downloading data")
-        
+
         out_status = daily_ERA5_download(
             sources_path, "precipitation", "total_precipitation_sum", "era5_precipitation", grid
         )
@@ -310,7 +310,7 @@ class GEEHeavyPrecipitationData(Dataset):
           latest quarter.
         - If `self.local` is False, currently raises NotImplementedError (API access TBD).
         Saves the loaded raw/dump data to the processing storage.
-        
+
         Args:
             grid: GlobalBaseGrid instance
 

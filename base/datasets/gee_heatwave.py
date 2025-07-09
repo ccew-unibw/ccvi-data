@@ -478,7 +478,7 @@ class GEEHeatwaveData(Dataset):
 
         Downloads the  data from the API and saves it to the processing
         storage. The filename is based on the current date and time.
-        
+
         Args:
             grid: GlobalBaseGrid instance
 
@@ -504,7 +504,7 @@ class GEEHeatwaveData(Dataset):
             "dewpoint_temperature_2m_max",
             "dewpoint_temperature_2m_max",
             "era5_dewpoint_temperature_2m_max",
-            grid
+            grid,
         )
         # step2
         print("Calculate humidex")
@@ -540,7 +540,7 @@ class GEEHeatwaveData(Dataset):
           latest quarter.
         - If `self.local` is False, currently raises NotImplementedError (API access TBD).
         Saves the loaded raw/dump data to the processing storage.
-        
+
         Args:
             grid: GlobalBaseGrid instance
 

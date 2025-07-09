@@ -560,6 +560,8 @@ class GlobalBaseGrid:
             adding "base_grid" to `regenerate: preprocessing` in the config.yaml).
         storage (StorageManager): An initialized StorageManager instance for
             handling data storage based on global config's storage_path.
+        basemap (gpd.GeoDataFrame): Country basemap for matching. Set via
+            `create_country_basemap()` during init.
     """
 
     console: Console = console
@@ -579,9 +581,14 @@ class GlobalBaseGrid:
         self.global_config = config.get_global_config()
         self.config = config.get_data_config(["countries", "land_mask", "inland_water_mask"])
         self.regenerate = config.get_regeneration_config("base_grid")["preprocessing"]
-        self.storage = StorageManager(storage_base_path=self.global_config["storage_path"])
+        self.storage = StorageManager(
+            storage_base_path=self.global_config["storage_path"],
+            requires_processing_storage=True,
+            processing_folder="base_grid",
+        )
         for key in self.config:
             self.storage.check_exists(self.config[key])
+        self.basemap = self.create_country_basemap()
 
     def load_filter_data(self) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]:
         """Loads and preprocessed country boundaries and land/water masks.
@@ -657,57 +664,66 @@ class GlobalBaseGrid:
         performs some adjustments: Merges West Bank and Gaza Strip into a single
         "PSE" entity, adjusts Western Sahara's administrative level status,
         removes Antarctica, and renames columns. It also filters disputed
-        territories. Returns the final GeoDataFrame.
+        territories. Check for cached version first unless `self.regenerate`
+        is True and returns the final GeoDataFrame.
 
         Returns:
             gpd.GeoDataFrame: A GeoDataFrame containing the processed country
                 geometries.
         """
-        cgaz = gpd.read_file(self.config["countries"])
-        cgaz["geometry"] = cgaz["geometry"].make_valid()
-        # merge palestine and gaza as this is often not treated separately
-        palestine_geom = cgaz.loc[cgaz["shapeName"].isin(["West Bank", "Gaza Strip"])].union_all()
-        palestine = gpd.GeoDataFrame(
-            {
-                "shapeGroup": ["PSE"],
-                "shapeType": ["ADM0"],
-                "shapeName": [
-                    "Palestine"
-                ],  # Custom name deviating from ISO 3166 ("Palestine, State of")
-                "geometry": [palestine_geom],
-            }
-        ).set_crs(cgaz.crs)  # type: ignore
-        cgaz = pd.concat(
-            [cgaz.loc[~cgaz["shapeName"].isin(["West Bank", "Gaza Strip"])], palestine],
-            ignore_index=True,
-        ).reset_index(drop=True)
 
-        # Adjust Western Sahara's status (DISP --> ADM0)
-        cgaz.loc[cgaz["shapeName"] == "Western Sahara", "shapeType"] = "ADM0"
-        # Remove Antarctica
-        cgaz.drop(cgaz[cgaz.shapeGroup == "ATA"].index, inplace=True)
-
-        # Build a mapping country index to iso-code
-        #
-        # The mapping is constructed by simply enumerating the lexicographically sorted
-        # list of ascending country codes
-        cgaz = (
-            cgaz.sort_values("shapeGroup")
-            .reset_index(drop=True)  # Reset index to reflect new sort order and drop old one
-            .reset_index()  # Move clean index into column
-            .rename(
+        fp_basemap = self.storage.build_filepath("processing", "basemap")
+        if os.path.exists(fp_basemap) and not self.regenerate:
+            cgaz = gpd.read_parquet(fp_basemap)
+        else:
+            cgaz = gpd.read_file(self.config["countries"])
+            cgaz["geometry"] = cgaz["geometry"].make_valid()
+            # merge palestine and gaza as this is often not treated separately
+            palestine_geom = cgaz.loc[
+                cgaz["shapeName"].isin(["West Bank", "Gaza Strip"])
+            ].union_all()
+            palestine = gpd.GeoDataFrame(
                 {
-                    "index": "cid",
-                    "shapeGroup": "cgaz",
-                    "shapeType": "level",
-                    "shapeName": "name",
-                },
-                axis=1,
+                    "shapeGroup": ["PSE"],
+                    "shapeType": ["ADM0"],
+                    "shapeName": [
+                        "Palestine"
+                    ],  # Custom name deviating from ISO 3166 ("Palestine, State of")
+                    "geometry": [palestine_geom],
+                }
+            ).set_crs(cgaz.crs)  # type: ignore
+            cgaz = pd.concat(
+                [cgaz.loc[~cgaz["shapeName"].isin(["West Bank", "Gaza Strip"])], palestine],
+                ignore_index=True,
+            ).reset_index(drop=True)
+
+            # Adjust Western Sahara's status (DISP --> ADM0)
+            cgaz.loc[cgaz["shapeName"] == "Western Sahara", "shapeType"] = "ADM0"
+            # Remove Antarctica
+            cgaz.drop(cgaz[cgaz.shapeGroup == "ATA"].index, inplace=True)
+
+            # Build a mapping country index to iso-code
+            #
+            # The mapping is constructed by simply enumerating the lexicographically sorted
+            # list of ascending country codes
+            cgaz = (
+                cgaz.sort_values("shapeGroup")
+                .reset_index(drop=True)  # Reset index to reflect new sort order and drop old one
+                .reset_index()  # Move clean index into column
+                .rename(
+                    {
+                        "index": "cid",
+                        "shapeGroup": "cgaz",
+                        "shapeType": "level",
+                        "shapeName": "name",
+                    },
+                    axis=1,
+                )
             )
-        )
-        cgaz["disputed"] = cgaz["level"] != "ADM0"
-        cgaz = cgaz[~cgaz.disputed]
-        cgaz = cgaz.rename(columns={"cgaz": "iso3"})
+            cgaz["disputed"] = cgaz["level"] != "ADM0"
+            cgaz = cgaz[~cgaz.disputed]
+            cgaz = cgaz.rename(columns={"cgaz": "iso3"})
+            cgaz.to_parquet(fp_basemap, compression="brotli")
         return cgaz  # type: ignore
 
     def filter_and_match_grid(
@@ -1114,23 +1130,31 @@ class AggregateScore:
     console: Console = console
     requires_processing_storage: bool = False
 
-    def load_components(self) -> pd.DataFrame:
+    def load_components(self, load_additional_values: bool = False, **load_kwargs) -> pd.DataFrame:
         """Loads the components associated with this dimension.
 
         Iterates through `self.components`, loads their respective output files
         using their `storage.load()` method, and concatenates them into a single
         DataFrame.
 
+        Args:
+            load_additional_values (bool): Flag whether to load the component by ID
+                only or include any additional (raw) values stored. Defaults to False.
+            load_kwargs: **kwargs for storage.load()
+
         Returns:
-            pd.DataFrame: A combined DataFrame with all direct components of the
-                aggregate score (i.e. Indicators for Dimensions, Dimension scores
-                for Pillars).
+            pd.DataFrame: A combined DataFrame with all (direct) components of the
+                aggregate score depending on the boolean flag (i.e. Indicators
+                for Dimensions, Dimension scores for Pillars by default).
         """
-        series_list = []
+        dfs = []
         for component in self.components:
-            df = component.storage.load()
-            series_list.append(df[component.composite_id])
-        df = pd.concat(series_list, axis=1)
+            df = component.storage.load(**load_kwargs)
+            if load_additional_values:
+                dfs.append(df)
+            else:
+                dfs.append(df[[component.composite_id]])
+        df = pd.concat(dfs, axis=1)
         return df
 
     def aggregate(
@@ -1397,7 +1421,7 @@ class Dimension(AggregateScore):
             else:
                 try:
                     assert i.generated
-                    self.console.print(f'Indicator "{i.composite_id}"" already generated.')
+                    self.console.print(f'Indicator "{i.composite_id}" already generated.')
                 except AssertionError:
                     i.run()
 
@@ -1411,7 +1435,7 @@ class Dimension(AggregateScore):
         performs sanity checks, and saves the final dimension score.
 
         Args:
-            skip_run (bool, optional): Whether to skip the pillar run. Can be set
+            skip_run (bool, optional): Whether to skip the dimension run. Can be set
                 to True for testing. Defaults to False, always regenerating the
                 aggregation. WARNING: no checks are performed in this case, only
                 works if a corresponding output file is in storage.
@@ -1522,9 +1546,9 @@ class Pillar(AggregateScore):
     def validate_dimension_input(self, dimensions: list[Dimension], skip_run: bool):
         """Validate the input list of dimensions.
 
-        Ensures that each dimension belongs to the pillar based on its identfier, checks
-        for duplicate dimensions, and verifies that each dimension has been generated.
-        Runs any dimensions that have not yet been generated.
+        Ensures that each dimension belongs to the pillar based on its identfier,
+        and checks for duplicate dimensions. Calls run on all dimensions that
+        have not yet been generated with the respective instance.
 
         Args:
             dimensions (list[Dimension]): List of Dimension instances which are
@@ -1541,15 +1565,21 @@ class Pillar(AggregateScore):
         assert all([id.startswith(self.composite_id) for id in dimension_ids])
         assert len(dimension_ids) == len(set(dimension_ids))
         for d in dimensions:
-            d.run(skip_run)
+            try:
+                assert d.generated
+                self.console.print(
+                    f'Dimension "{d.composite_id}" already generated with this instance.'
+                )
+            except AssertionError:
+                d.run(skip_run)
 
     def run(self, skip_run: bool = False) -> None:
         """Executes the full workflow for calculating and saving the dimension score.
 
         Validates input indicators (running them if needed), loads indicator data,
-        determines data recency, checks generation status (skipping if `regenerate`
-        is False and already generated), aggregates the indicators, performs
-        sanity checks, and saves the final pillar score.
+        checks generation status (skipping if `regenerate` is False and already
+        generated), aggregates the indicators, performs sanity checks, and saves
+        the final pillar score.
 
         Args:
             skip_run (bool, optional): Whether to skip the pillar run. Can be set

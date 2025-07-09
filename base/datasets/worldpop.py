@@ -265,7 +265,7 @@ class WorldPopData(Dataset):
             da = xr.open_dataset(self.file_pixel_areas)["land_area"]  # type: ignore
             df = grid.load()
             df["land_area"] = df.apply(lambda x: aggregate_cell(x.lat, x.lon), axis=1)  # type: ignore
-            df["land_area"] = df["land_area"] / 1e6 # convert to km²
+            df["land_area"] = df["land_area"] / 1e6  # convert to km²
             self.storage.save(df, "processing", "wp_land")
         else:
             df = self.storage.load("processing", "wp_land")
@@ -331,7 +331,7 @@ class WorldPopData(Dataset):
             imputation_method="interpolate",
             interp_method="slinear",
             tail_behavior=["fill", "extrapolate"],
-            parallel_kwargs={"n_jobs": 16, "verbose": 1}
+            parallel_kwargs={"n_jobs": 16, "verbose": 1},
         )
         df_out.update(
             imputer.fit_transform(df_out[["land_area", "pop_count", "pop_density"]]),  # type: ignore

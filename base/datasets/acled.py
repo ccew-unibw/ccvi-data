@@ -3,7 +3,7 @@ import math
 import pandas as pd
 from tqdm import tqdm
 
-from base.objects import ConfigParser, Dataset
+from base.objects import ConfigParser, Dataset, GlobalBaseGrid
 from utils.index import get_quarter
 from utils.spatial_operations import coords_to_pgid, round_grid
 
@@ -24,14 +24,13 @@ class ACLEDData(Dataset):
             download data via the ACLED API (False).
         acled_available (bool): Flag set to True after data is
             successfully loaded or checked by `load_data`.
-        data_keys (list[str]): Specifies required data keys from config: "acled"
-            (for ACLED data itself) and "countries" (for country geometries used
-            in coverage flag generation).
+        grid (GlobalBaseGrid): GlobalBaseGrid instance, used to load the country
+            basemap for coverage matching.
     """
 
     data_key = "acled"
 
-    def __init__(self, config: ConfigParser, local: bool = True):
+    def __init__(self, config: ConfigParser, grid: GlobalBaseGrid, local: bool = True):
         """Initializes the ACLED data source.
 
         Sets the operation mode (local file vs API), defines required data
@@ -39,12 +38,13 @@ class ACLEDData(Dataset):
 
         Args:
             config (ConfigParser): An initialized ConfigParser instance.
+            grid (GlobalBaseGrid): An initialized GlobalBaseGrid instance.
             local (bool, optional): Indicates whether to use local ACLED
                 dumps (True) or download data via the ACLED API (False).
         """
+        self.grid = grid
         self.local = local
         self.acled_available = False
-        self.data_keys = [self.data_key, "countries"]
         super().__init__(config=config)
 
     def load_data(self):
@@ -543,8 +543,7 @@ class ACLEDData(Dataset):
         # df_start_dates.sort_values('country').to_csv('data/acled_coverage.csv', index=False)
 
         # read countries based on GeoBoundaries for matching with start dates and grid
-        df_countries = pd.read_parquet(self.data_config["countries"], columns=["cgaz", "name"])
-        df_countries = df_countries.rename(columns={"cgaz": "iso3"})
+        df_countries = self.grid.basemap[["iso3", "name"]].copy()
         df_countries = df_countries.loc[df_countries["iso3"].isin(df_data["iso3"].unique())]
         df_countries = df_countries.merge(
             df_start_dates, how="left", left_on="name", right_on="country"
