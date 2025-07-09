@@ -10,42 +10,46 @@ from base.objects import (
     Dimension,
     Pillar,
 )
-import ccvi # load initialized components
+import ccvi  # load initialized components
 
 
 ### WRAPPER CLASSES FOR DASHBOARD ###
-class DimToolOutputWrapper():
+class DimToolOutputWrapper:
     """
     Wraps Dimension class, implementing `run()` storing all data for dashboard use.
-    
+
     Skips some of the checks performed during the original dimension calculation.
     Runs the original validation to make sure output is up to date.
     """
 
     def __init__(self, dimension: Dimension):
         """Initialize Wrapped Dimension class
-        
-        Args: 
+
+        Args:
             dimension (Dimension): An initialized Dimension instance.
         """
-        assert isinstance(dimension, Dimension), f"'dimension' arg needs to be an instance of Dimension, got {type(dimension)} instead."
+        assert isinstance(dimension, Dimension), (
+            f"'dimension' arg needs to be an instance of Dimension, got {type(dimension)} instead."
+        )
         self.dimension = dimension
         self.console = dimension.console
         self.composite_id = dimension.composite_id
-    
+
     def run(self) -> None:
         """Loads all scores from indicators and adds dimension score.
 
-        Checks whether all indicators are generated, runs the standard dimension 
-        validation, loads indicators, fills missing using forward fill, checks 
-        and loads dimension scores (setting generated to True), combines 
+        Checks whether all indicators are generated, runs the standard dimension
+        validation, loads indicators, fills missing using forward fill, checks
+        and loads dimension scores (setting generated to True), combines
         everything and stores it in the "tool" output subfolder.
         """
         self.console.print(f'Processing dimension "{self.composite_id}"...')
         for i in self.dimension.components:
-            assert i.storage.check_component_generated(), f"Indicator {i.composite_id} not yet generated for last quarter, check data output!"
+            assert i.storage.check_component_generated(), (
+                f"Indicator {i.composite_id} not yet generated for last quarter, check data output!"
+            )
         self.dimension.validate_indicator_input(self.dimension.components)
-        
+
         self.console.print("Loading indicators...")
         df = self.dimension.load_components(load_additional_values=True)
         # fill missing data with the last available observation
@@ -57,44 +61,48 @@ class DimToolOutputWrapper():
             self.console.print("Adding exposure...")
             df_exp = self.dimension.add_exposure(df)
             df = pd.concat([df, df_exp], axis=1)
-            
+
         self.console.print("Loading aggregate score...")
-        assert self.dimension.storage.check_component_generated(), f"Dimension {self.dimension.composite_id} not yet generated for last quarter, check data output!"
+        assert self.dimension.storage.check_component_generated(), (
+            f"Dimension {self.dimension.composite_id} not yet generated for last quarter, check data output!"
+        )
         df_aggregated = self.dimension.storage.load()
-        
-        df = pd.concat([df, df_aggregated], axis=1)        
+
+        df = pd.concat([df, df_aggregated], axis=1)
         self.dimension.storage.save(df, subfolder="tool")
         self.console.print(
             f'All Dimension "{self.composite_id}" scores successfully processed and saved.'
         )
         return
-    
 
-class PillarToolOutputWrapper():
+
+class PillarToolOutputWrapper:
     """
     Wraps Pillar class implementing `run()`, storing all data for dashboard use.
-    
-    Skips some of the checks performed during the original pillar calculation.     
+
+    Skips some of the checks performed during the original pillar calculation.
     Runs the original validation to make sure output is up to date.
     """
 
     def __init__(self, pillar: Pillar):
         """Initialize Wrapped Pillar class
-        
-        Args: 
+
+        Args:
             dimension (Pillar): An initialized Dimension instance.
         """
-        assert isinstance(pillar, Pillar), f"'pillar' arg needs to be an instance of Pillar, got {type(pillar)} instead."
+        assert isinstance(pillar, Pillar), (
+            f"'pillar' arg needs to be an instance of Pillar, got {type(pillar)} instead."
+        )
         self.pillar = pillar
         self.console = pillar.console
         self.composite_id = pillar.composite_id
-         
+
     def run(self) -> pd.DataFrame:
         """Loads all scores from Dimension Wrapper and adds pillar score.
-        
+
         Check whether pillar has been generated for the last quarter and raises
         AssertionError otherwise.
-        
+
         Returns:
             pd.DataFrame: Dataframe with all component scores and pillar score.
         """
@@ -103,33 +111,38 @@ class PillarToolOutputWrapper():
         df = self.pillar.load_components(load_additional_values=True, subfolder="tool")
 
         self.console.print("Adding pillar score...")
-        assert self.pillar.storage.check_component_generated(), f"Pillar {self.composite_id} not yet generated for last quarter, check data output!"
+        assert self.pillar.storage.check_component_generated(), (
+            f"Pillar {self.composite_id} not yet generated for last quarter, check data output!"
+        )
         df_aggregated = self.pillar.storage.load()
         df = pd.concat([df, df_aggregated], axis=1)
         return df
 
-    
-class CCVIWrapper():
+
+class CCVIWrapper:
     """
     Wraps CCVI class implementing a run combining all data for dashboard use.
     """
+
     def __init__(self, ccvi_instance: ccvi.CCVI):
         """Initialize Wrapped CCVI class.
-        
-        Args: 
+
+        Args:
             ccvi_instance (CCVI): An initialized CCVI instance.
         """
-        assert isinstance(ccvi_instance, ccvi.CCVI), f"'ccvi_instance' arg needs to be an instance of CCVI, got {type(ccvi_instance)} instead."
+        assert isinstance(ccvi_instance, ccvi.CCVI), (
+            f"'ccvi_instance' arg needs to be an instance of CCVI, got {type(ccvi_instance)} instead."
+        )
         self.ccvi = ccvi_instance
         self.console = ccvi_instance.console
         self.cli = PillarToolOutputWrapper(self.ccvi.cli)
         self.con = PillarToolOutputWrapper(self.ccvi.con)
         self.vul = PillarToolOutputWrapper(self.ccvi.vul)
-        
+
     @staticmethod
     def copy_to_s3(directory: str) -> None:
         load_dotenv()
-        bucket_name: str = os.getenv("S3_BUCKET_NAME") # type: ignore
+        bucket_name: str = os.getenv("S3_BUCKET_NAME")  # type: ignore
         s3_client = boto3.client(
             "s3",
             aws_access_key_id=os.getenv("S3_ACCESS_ID"),
@@ -146,19 +159,23 @@ class CCVIWrapper():
     def run(self):
         """Loads all scores and data recency and stores in tool output format.
 
-        Loads all preprocessed components from "tool" output subfolder, loads 
+        Loads all preprocessed components from "tool" output subfolder, loads
         risk scores, combines both. Also loads data recency and grid and stores
         everything
         """
-        self.console.print(f'Processing full data for dashboard output...')
+        self.console.print(f"Processing full data for dashboard output...")
         self.console.print("Load components...")
         dfs = [p.run() for p in [self.cli, self.con, self.vul]]
         df = pd.concat(dfs, axis=1)
         self.console.print("Load recency and risk scores...")
         # the quarter id makes sure this is up to date
-        data_recency = self.ccvi.storage.load(filename=f"ccvi_scores_{self.ccvi.quarter_id}", subfolder=self.ccvi.quarter_id)
-        df_aggregated = self.ccvi.storage.load(filename=f"data_recency_{self.ccvi.quarter_id}", subfolder=self.ccvi.quarter_id)
-        # limit to scores 
+        data_recency = self.ccvi.storage.load(
+            filename=f"ccvi_scores_{self.ccvi.quarter_id}", subfolder=self.ccvi.quarter_id
+        )
+        df_aggregated = self.ccvi.storage.load(
+            filename=f"data_recency_{self.ccvi.quarter_id}", subfolder=self.ccvi.quarter_id
+        )
+        # limit to scores
         df = df[[c for c in df.columns if c not in df_aggregated.columns]]
         df = pd.concat([df_aggregated, df], axis=1)
         # loading exposure is easiest via one of the climate dims
