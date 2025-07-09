@@ -30,8 +30,8 @@ class CliCurrentDrought(Indicator, NormalizationMixin):
         )
         try:
             fp_preprocessed = pd.read_parquet(fp_preprocessed)
-            last_quarter_date = get_quarter("last")
-
+            # compare to end, since data is monthly
+            last_quarter_date = get_quarter("last", "end")
             if fp_preprocessed["time"].max().date() < last_quarter_date:
                 raise FileNotFoundError
             return fp_preprocessed
