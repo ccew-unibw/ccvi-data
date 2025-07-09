@@ -1,5 +1,9 @@
+"""
+Script to be run manually AFTER the ccvi pipeline has run to combine all data
+required for the dashboard and push it to the S3 bucket. Stores the files
+versioned by quarter in the "tool" subfolder of the output folder.
+"""
 import os
-import subprocess
 
 import boto3
 from dotenv import load_dotenv
