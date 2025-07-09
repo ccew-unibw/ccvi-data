@@ -808,22 +808,13 @@ class SPEIData(Dataset):
         self.filename = (
             f"spei_{self.last_quarter_date.year}_Q{int(self.last_quarter_date.month / 3)}"
         )
-        self.columns = ["YEAR", "EVENT_TYPE", "LATITUDE", "LONGITUDE", "COUNT", "EVENT_DATE"]
         try:
             df_event_level = self.storage.load("processing", filename=self.filename)
         except FileNotFoundError:
-            if self.local:
-                df_event_level = pd.read_parquet(self.data_config[self.data_key])
-                if df_event_level["EVENT_DATE"].max() < self.last_quarter_date:
-                    raise Exception(
-                        "preprocessed  data out of date, please provide a version up to "
-                        f"{self.last_quarter_date}."
-                    )
-            else:
-                self.download_data()
-                self.dataset_available = True
-                df_event_level = self.storage.load("processing", filename=self.filename)
-                return df_event_level
+            self.download_data()
+            self.dataset_available = True
+            df_event_level = self.storage.load("processing", filename=self.filename)
+            return df_event_level
 
         # Set an instance attribute for easy checking
         self.dataset_available = True
