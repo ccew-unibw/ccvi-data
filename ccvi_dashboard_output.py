@@ -3,6 +3,7 @@ Script to be run manually AFTER the ccvi pipeline has run to combine all data
 required for the dashboard and push it to the S3 bucket. Stores the files
 versioned by quarter in the "tool" subfolder of the output folder.
 """
+
 import os
 
 import boto3
@@ -10,7 +11,19 @@ from dotenv import load_dotenv
 import pandas as pd
 from panel_imputer import PanelImputer
 
-from base.datasets import WPPData, UNHCRData, CPIData, WBData, VDemData, FHData, SWIIDData, SDGData, HDIData, IMFData, ILOData
+from base.datasets import (
+    WPPData,
+    UNHCRData,
+    CPIData,
+    WBData,
+    VDemData,
+    FHData,
+    SWIIDData,
+    SDGData,
+    HDIData,
+    IMFData,
+    ILOData,
+)
 from base.objects import (
     Dimension,
     Pillar,
@@ -18,10 +31,11 @@ from base.objects import (
 import ccvi
 from utils.index import get_quarter  # load initialized components
 
+
 def get_vul_country_data():
     config = ccvi.config
-    
-    wpp  = WPPData(config)
+
+    wpp = WPPData(config)
     unhcr = UNHCRData(config)
     cpi = CPIData(config)
     wb = WBData(config)
@@ -36,13 +50,16 @@ def get_vul_country_data():
     df_wpp = wpp.preprocess_wpp(wpp.load_data())
     df_unhcr = unhcr.preprocess_data(unhcr.load_data())[["forcibly_displaced"]]
     df_cpi = cpi.preprocess_data(cpi.load_data())
-    wb_dict = {
-        "RL.EST": "rl",
-        "NV.AGR.TOTL.ZS": "agr_value_added",
-        "NY.GDP.MKTP.PP.CD": "gdp_ppp"
-    }
+    wb_dict = {"RL.EST": "rl", "NV.AGR.TOTL.ZS": "agr_value_added", "NY.GDP.MKTP.PP.CD": "gdp_ppp"}
     df_wb = wb.load_data(wb_dict)
-    df_imf = imf.preprocess_data(imf.load_data({"PPPGDP": "gdp_ppp",}), scaling_factor=1000000000)
+    df_imf = imf.preprocess_data(
+        imf.load_data(
+            {
+                "PPPGDP": "gdp_ppp",
+            }
+        ),
+        scaling_factor=1000000000,
+    )
     df_gdp = ccvi.vul_socioeconomic_deprivation._merge_gdp_data(df_wb, df_imf)
     df_gdp = ccvi.vul_socioeconomic_deprivation._add_pc_values(df_gdp, df_wpp)
     df_wb = pd.concat([df_wb[["rl", "agr_value_added"]], df_gdp[["gdp_ppp", "gdp_ppp_pc"]]], axis=1)
@@ -56,12 +73,29 @@ def get_vul_country_data():
     df_swiid = swiid.preprocess_data(swiid.load_data())
     df_sdg = sdg.preprocess_data(sdg.load_data(["SN_ITK_DEFC"]))
     df_hdi = hdi.preprocess_data(hdi.load_data(["gii", "eys", "mys", "le"]))
-    df_vdem = vdem.preprocess_data(vdem.load_data(["v2x_libdem", "v2xpe_exlsocgr", "v2xpe_exlgender", "v2x_rule", "v2x_civlib", "v2x_polyarchy"]))
-    df_fh = fh.preprocess_data(fh.load_data())[["political_rights_percent", "civil_liberties_percent"]]
+    df_vdem = vdem.preprocess_data(
+        vdem.load_data(
+            [
+                "v2x_libdem",
+                "v2xpe_exlsocgr",
+                "v2xpe_exlgender",
+                "v2x_rule",
+                "v2x_civlib",
+                "v2x_polyarchy",
+            ]
+        )
+    )
+    df_fh = fh.preprocess_data(fh.load_data())[
+        ["political_rights_percent", "civil_liberties_percent"]
+    ]
     dfs = [df_wpp, df_unhcr, df_cpi, df_wb, df_ilo, df_sdg, df_hdi, df_vdem, df_fh, df_swiid]
-    dfs = [df.sort_index().loc[(slice(None), slice(2015, get_quarter("last").year)), slice(None)] for df in dfs]
+    dfs = [
+        df.sort_index().loc[(slice(None), slice(2015, get_quarter("last").year)), slice(None)]
+        for df in dfs
+    ]
     df = pd.concat(dfs, axis=1).sort_index()
     return df
+
 
 ### WRAPPER CLASSES FOR DASHBOARD ###
 class DimToolOutputWrapper:
