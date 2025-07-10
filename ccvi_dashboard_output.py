@@ -28,8 +28,10 @@ from base.objects import (
     Dimension,
     Pillar,
 )
+from utils.index import get_quarter
+
+# load initialized components
 import ccvi
-from utils.index import get_quarter  # load initialized components
 
 
 def get_vul_country_data():
