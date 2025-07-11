@@ -255,10 +255,10 @@ class CCVIWrapper:
         df = pd.concat(dfs, axis=1)
         self.console.print("Load recency and risk scores...")
         # the quarter id makes sure this is up to date
-        data_recency = self.ccvi.storage.load(
+        df_aggregated = self.ccvi.storage.load(
             filename=f"ccvi_scores_{self.ccvi.quarter_id}", subfolder=self.ccvi.quarter_id
         )
-        df_aggregated = self.ccvi.storage.load(
+        data_recency = self.ccvi.storage.load(
             filename=f"data_recency_{self.ccvi.quarter_id}", subfolder=self.ccvi.quarter_id
         )
         # limit to scores
@@ -276,7 +276,7 @@ class CCVIWrapper:
         self.ccvi.storage.save(df_exp, filename="exposure_layers", subfolder=subfolder)
         self.ccvi.storage.save(df_vul_country, filename="vul_country_raw", subfolder=subfolder)
         # send to S3
-        filepath = self.ccvi.storage.build_filepath("output", subfolder=subfolder)
+        filepath = self.ccvi.storage.build_filepath("output", "", subfolder, "")
         self.copy_to_s3(filepath)
         self.console.print("CCVI data successfully processed for dashboard and sent to S3!")
         return
