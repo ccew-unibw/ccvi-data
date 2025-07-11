@@ -1,6 +1,3 @@
-> [!NOTE]  
-> This repository does not reflect the previous data generation visible on climate-conflict.org. We plan to switch to this new data pipeline for the 2025-Q2 release, with testing currently still under way.
-
 # ccvi-data: Data processing for the Climate—Conflict—Vulnerability Index (CCVI)
 
 The Climate Conflict Vulnerability Index (CCVI) is the result of a joint research project between the [Center for Crisis Early Warning (CCEW)](https://www.unibw.de/ciss-en/ccew) at [University of the Bundeswehr Munich](https://www.unibw.de/home-en), the [FutureLab "Security, Ethnic Conflicts and Migration"](https://www.pik-potsdam.de/en/institute/futurelabs-science-units/security-ethnic-conflicts-and-migration) at the [Potsdam Institute for Climate Impact Research (PIK)](https://www.pik-potsdam.de/en), and the [German Federal Foreign Office](https://www.auswaertiges-amt.de/en). 
