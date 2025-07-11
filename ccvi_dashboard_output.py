@@ -274,7 +274,7 @@ class CCVIWrapper:
         self.ccvi.storage.save(data_recency, filename="data_recency", subfolder=subfolder)
         self.ccvi.storage.save(ccvi.base_grid.load(), filename="base_grid", subfolder=subfolder)
         self.ccvi.storage.save(df_exp, filename="exposure_layers", subfolder=subfolder)
-        self.ccvi.storage.save(df_exp, filename="vul_country_raw", subfolder=subfolder)
+        self.ccvi.storage.save(df_vul_country, filename="vul_country_raw", subfolder=subfolder)
         # send to S3
         filepath = self.ccvi.storage.build_filepath("output", subfolder=subfolder)
         self.copy_to_s3(filepath)
