@@ -123,7 +123,7 @@ class ILOData(Dataset):
         countries = df_merge.index.get_level_values("iso3").unique()
         # remove regional aggregates
         countries = [country for country in countries if country[0] != "X"]
-        years = np.arange(self.global_config["start_year"], date.today().year + 1)
+        years = np.arange(self.global_config["start_year"]-5, date.today().year + 1)
         df_out = pd.DataFrame(
             data=zip(countries, [years for c in countries]), columns=["iso3", "year"]
         )
