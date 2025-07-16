@@ -72,13 +72,17 @@ def get_vul_country_data():
         "EAP_2WAP_SEX_AGE_RT_A": "labor_force_participation_model",  # Labour force participation rate by sex and age (%) -- Annual
     }
     df_ilo = ilo.preproces_data_agrdep(ilo.load_data(ilo_indicators))
+    df_agr = pd.concat([df_ilo, df_wb["agr_value_added"]], axis=1).sort_index()
+    df_agr = ccvi.vul_socioeconomic_agriculture.clip_fill_data(df_agr)
+    df_agr["labor_force_agriculture"] = (df_agr['labor_force_participation']/100) * df_agr['agr_sector_share']
+    df_wb = df_wb.drop(columns=["agr_value_added"])
+    
     df_swiid = swiid.preprocess_data(swiid.load_data())
     df_sdg = sdg.preprocess_data(sdg.load_data(["SN_ITK_DEFC"]))
     df_hdi = hdi.preprocess_data(hdi.load_data(["gii", "eys", "mys", "le"]))
     df_vdem = vdem.preprocess_data(
         vdem.load_data(
             [
-                "v2x_libdem",
                 "v2xpe_exlsocgr",
                 "v2xpe_exlgender",
                 "v2x_rule",
@@ -90,7 +94,7 @@ def get_vul_country_data():
     df_fh = fh.preprocess_data(fh.load_data())[
         ["political_rights_percent", "civil_liberties_percent"]
     ]
-    dfs = [df_wpp, df_unhcr, df_cpi, df_wb, df_ilo, df_sdg, df_hdi, df_vdem, df_fh, df_swiid]
+    dfs = [df_wpp, df_unhcr, df_cpi, df_wb, df_agr, df_sdg, df_hdi, df_vdem, df_fh, df_swiid]
     dfs = [
         df.sort_index().loc[(slice(None), slice(2015, get_quarter("last").year)), slice(None)]
         for df in dfs
@@ -238,7 +242,7 @@ class CCVIWrapper:
         for path, _, files in os.walk(directory):
             for f in files:
                 fp = os.path.join(path, f)
-                key = os.path.relpath(fp, directory)
+                key = os.path.join("new", os.path.relpath(fp, directory))
                 s3_client.upload_file(Filename=fp, Bucket=bucket_name, Key=key)
         return
 
