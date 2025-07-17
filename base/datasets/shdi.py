@@ -121,7 +121,7 @@ class SubnationalHDIData(Dataset):
         """
         fp = self.storage.build_filepath("processing", "pgid_gdl_lookup.csv")
         if os.path.exists(fp) and not self.regenerate["preprocessing"]:
-            df = pd.read_csv(fp)
+            df = pd.read_csv(fp, index_col="pgid")
             df.gdlcode = df.gdlcode.apply(lambda x: ast.literal_eval(x) if x[0] == "{" else x)
         else:
             self.console.print("Generating SHDI-Grid matching lookup file...")
