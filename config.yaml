@@ -9,7 +9,7 @@ data:
   admin1: geoBoundariesCGAZ_ADM1.gpkg # https://www.geoboundaries.org/
   land_mask: ne_50m_land.zip # https://www.naturalearthdata.com/downloads/
   inland_water_mask: ne_10m_lakes.zip # https://www.naturalearthdata.com/downloads/
-  acled: acled_index_input_20250404.parquet # https://acleddata.com/
+  acled: acled_index_input_20250704.parquet # https://acleddata.com/
   shdi: SHDI-SGDI-Total 8.0.csv # https://globaldatalab.org/
   shdi_shapes: "GDL Shapefiles V6.4.zip" # https://globaldatalab.org/
   wpp: WPP2024_GEN_F01_DEMOGRAPHIC_INDICATORS_COMPACT.xlsx # https://population.un.org/wpp/
@@ -192,12 +192,14 @@ global:
   regenerate:
     # specify list of indicator composite_id(s) to force regeneration of indicator calculation.
     indicator:
-      # - CON_level_intensity
+      # - VUL_socioeconomic_hunger
+      # - VUL_socioeconomic_insecurity
     # Specify list of indicator composite_id(s) or dataset data_key(s) to force regeneration of 
     # preprocessing.
     # Additionally, "base_grid" to regenerate the grid and "climate_exposure" to regenerate the 
     # climate exposure layer are possible entries.
     preprocessing:
+      # - climate_exposure
       # - base_grid
     # Specify list of dataset data_key(s) to force regeneration of data (down)loading.
     data:
