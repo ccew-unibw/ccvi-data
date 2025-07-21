@@ -1637,7 +1637,8 @@ class Dataset(ABC):
         local (bool): Flag indicating if the data source is expected to be loaded
             from the local input folder. Defaults to True.
         needs_storage (bool): Flag indicating whether the dataset needs processing
-            storage. If False, no processing folder will be created.
+            storage. If False, no processing folder will be created. Defaults to
+            True.
         config (ConfigParser): The ConfigParser instance used for initialization.
         global_config (dict[str, Any]): Dictionary containing global settings.
         storage (StorageManager): Storage manager instance configured with
