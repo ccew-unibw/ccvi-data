@@ -12,6 +12,7 @@ from .hdi import HDIData
 from .ibtrak_cyclones import IBTRAKData
 from .ilo import ILOData
 from .imf import IMFData
+from .lgrip import LGRIPData
 from .modis_wildfires import MODISWildfiresData
 from .ntl import NTLData
 from .sdg import SDGData
@@ -40,6 +41,7 @@ __all__ = [
     "IBTRAKData",
     "ILOData",
     "IMFData",
+    "LGRIPData",
     "MODISWildfiresData",
     "NTLData",
     "SDGData",
