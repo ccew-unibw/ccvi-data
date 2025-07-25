@@ -4,6 +4,7 @@ from .cpi import CPIData
 from .epr import EPRData
 from .diva_subsidence import DIVASubsidenceData
 from .ewds_floods import EWDSData
+from .forest_change import GFCData
 from .freedomhouse import FHData
 from .gee_heatwave import GEEHeatwaveData
 from .gee_heavy_precipitation import GEEHeavyPrecipitationData
@@ -37,6 +38,7 @@ __all__ = [
     "GEEHeatwaveData",
     "GEEHeavyPrecipitationData",
     "GEEPrecipitationAnomaly",
+    "GFCData",
     "HDIData",
     "IBTRAKData",
     "ILOData",
