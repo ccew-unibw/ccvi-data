@@ -20,7 +20,7 @@ class GFCData(Dataset):
 
     Implements `load_data()` to download the current version of the GFC data
     from a Google Cloud Storage bucket.
-    
+
     Attributes:
         data_key (str): Set to "gfc".
         local (bool): Set to False, as data is sourced from cloud storage.
@@ -46,14 +46,13 @@ class GFCData(Dataset):
         self.s3_client = boto3.client(
             "s3",
             endpoint_url="https://storage.googleapis.com",
-            config=botocore.client.Config(signature_version=botocore.UNSIGNED)
+            config=botocore.client.Config(signature_version=botocore.UNSIGNED),
         )
         self.version = self._find_latest_forest_change_version()
         # check which files are already in storage
         self.gfc_files = self._check_version_files()
         self.data_loaded = False
 
-    
     def _check_version_files(self) -> list[str]:
         files_storage = [
             f for f in os.listdir(self.storage.storage_paths["processing"]) if f.endswith(".tif")
@@ -65,13 +64,17 @@ class GFCData(Dataset):
             if files_current_version == files_storage:
                 valid_files = files_storage
             else:
-                files_different_version = [f for f in files_storage if f not in files_current_version]
-                self.console.print(f"Deleting {len(files_different_version)} files not from the current GFC version.")
+                files_different_version = [
+                    f for f in files_storage if f not in files_current_version
+                ]
+                self.console.print(
+                    f"Deleting {len(files_different_version)} files not from the current GFC version."
+                )
                 for f in files_different_version:
-                    os.remove(self.storage.build_filepath("processing", f, filetype = ""))
+                    os.remove(self.storage.build_filepath("processing", f, filetype=""))
                 valid_files = files_current_version
         return valid_files
-    
+
     def _find_latest_forest_change_version(self) -> str:
         """Finds the latest version of the dataset querying the public GCS bucket.
 
@@ -85,16 +88,15 @@ class GFCData(Dataset):
         """
 
         # Configure boto3 for anonymous (unsigned) access to a public bucket
-        paginator = self.s3_client.get_paginator('list_objects_v2')
+        paginator = self.s3_client.get_paginator("list_objects_v2")
         # Use Delimiter='/' to list only top-level "directories" (prefixes)
-        pages = paginator.paginate(Bucket=self.bucket_name, Delimiter='/')
+        pages = paginator.paginate(Bucket=self.bucket_name, Delimiter="/")
         directories = []
         for page in pages:
-            for prefix in page.get('CommonPrefixes', []):
+            for prefix in page.get("CommonPrefixes", []):
                 # Extract the directory name, removing the trailing '/'
-                directories.append(prefix.get('Prefix', '').strip('/'))
+                directories.append(prefix.get("Prefix", "").strip("/"))
 
-        
         version_pattern = re.compile(r"GFC-(\d{4})-v(\d+)\.(\d+)")
         parsed_versions = []
 
@@ -102,17 +104,17 @@ class GFCData(Dataset):
             match = version_pattern.match(dirname)
             if match:
                 parsed_versions.append(dirname)
-        
+
         if not parsed_versions:
             raise FileNotFoundError("No directories matching the GFC version pattern were found.")
-            
+
         parsed_versions.sort()
         latest_version_name = parsed_versions[-1]
         return latest_version_name
 
     @staticmethod
-    def get_tiles_for_grid(pgids:Iterable[int]) -> list[str]:
-        """Generates strings representing relevant 10x10 degree GFC tiles based on pgids. """
+    def get_tiles_for_grid(pgids: Iterable[int]) -> list[str]:
+        """Generates strings representing relevant 10x10 degree GFC tiles based on pgids."""
         tiles = []
         for pgid in pgids:
             lat, lon = pgid_to_coords(pgid)
@@ -124,7 +126,7 @@ class GFCData(Dataset):
             lon_boundary_str = f"{abs(int(lon_boundary)):03d}{lon_postfix}"
             tiles.append(f"{lat_boundary_str}_{lon_boundary_str}")
         return sorted(list(np.unique(tiles)))
-    
+
     @staticmethod
     def get_pgids_for_tile(tile_loc: str, pgids: Iterable[int]) -> list[int] | None:
         # parse tile string to get boundaries
@@ -148,12 +150,12 @@ class GFCData(Dataset):
             return None
         else:
             return pgids_filtered
-    
+
     @staticmethod
-    def _gfc_filename(version:str, layer:str, tile_loc:str) -> str:
+    def _gfc_filename(version: str, layer: str, tile_loc: str) -> str:
         return f"Hansen_{version}_{layer}_{tile_loc}.tif"
-    
-    def load_data(self, grid:GlobalBaseGrid) -> None:
+
+    def load_data(self, grid: GlobalBaseGrid) -> None:
         """Downloads latest version of GFC data.
 
         This method does not return data directly but populates the processing storage.
@@ -169,39 +171,45 @@ class GFCData(Dataset):
         if len(files_to_download) == 0:
             self.console.print("All required files already in storage.")
         else:
-            self.console.print(f"{len(files_to_download)}/{len(required_files)} potential files missing in storage. Expected are 63 based on 2024.")
-            # with Progress(console=self.console) as progress:
-            #     task_download = progress.add_task("Downloading GFC", total=len(files_to_download))
-            #     for filename in files_to_download:
-            #         object_key = f"{self.version}/{filename}"
-            #         filepath = self.storage.build_filepath("processing", filename, filetype="")
-            #         try:
-            #             self.s3_client.download_file(self.bucket_name, object_key, filepath)
-            #         except botocore.exceptions.ClientError as e:
-            #             if e.response['Error']['Code'] == '404':
-            #                 self.console.print(f"404 Error: File not found in bucket: {object_key}")
-            #             else:
-            #                 self.console.print(f"Error downloading tile: {e}")
-            #         progress.update(task_download, advance=1)
+            self.console.print(
+                f"{len(files_to_download)}/{len(required_files)} potential files missing in storage. Expected are 63 based on 2024."
+            )
+            with Progress(console=self.console) as progress:
+                task_download = progress.add_task("Downloading GFC", total=len(files_to_download))
+                for filename in files_to_download:
+                    object_key = f"{self.version}/{filename}"
+                    filepath = self.storage.build_filepath("processing", filename, filetype="")
+                    try:
+                        self.s3_client.download_file(self.bucket_name, object_key, filepath)
+                    except botocore.exceptions.ClientError as e:
+                        if e.response["Error"]["Code"] == "404":
+                            self.console.print(f"404 Error: File not found in bucket: {object_key}")
+                        else:
+                            self.console.print(f"Error downloading tile: {e}")
+                    progress.update(task_download, advance=1)
         self.data_loaded = True
         return
 
-    def get_dict_files(self, grid:GlobalBaseGrid) -> dict[str, dict[str, str|None] | None]:
+    def get_dict_files(self, grid: GlobalBaseGrid) -> dict[str, dict[str, str | None] | None]:
         pgids = grid.load().reset_index()["pgid"].to_list()
         relevant_tiles = self.get_tiles_for_grid(pgids)
-        file_dict: dict[str, dict[str, str|None] | None] = {tile: {} for tile in relevant_tiles}
+        file_dict: dict[str, dict[str, str | None] | None] = {tile: {} for tile in relevant_tiles}
         layers = ["datamask", "lossyear", "treecover2000"]
         for tile in file_dict:
             for layer in layers:
                 filename = self._gfc_filename(self.version, layer, tile)
-                file_dict[tile][layer] = self.storage.build_filepath("processing", filename, filetype="") if filename in self.gfc_files else None
+                file_dict[tile][layer] = (
+                    self.storage.build_filepath("processing", filename, filetype="")
+                    if filename in self.gfc_files
+                    else None
+                )
             if all(file_dict[tile][layer] is None for layer in layers):
                 file_dict[tile] = None
         return file_dict
 
+
 # test class
 if __name__ == "__main__":
-
     config = ConfigParser()
     grid = GlobalBaseGrid(config)
     # Example usage
