@@ -7,6 +7,7 @@ import re
 import requests
 import os
 
+
 from dotenv import load_dotenv
 from rich.progress import Progress
 import rioxarray as rxr
@@ -42,7 +43,8 @@ class NTLData(Dataset):
         years (list[int]): List of years for which NTL data is expected,
             going from global config's `start_year` up to the last complete year.
         ntl_files (list[str]): List of NTL filenames found in the processing
-            storage during initialization (or empty if `regenerate['data']` is True).
+            storage, set during initialization (set to empty if `regenerate['data']`
+            is True) and updated during `load_data()`.
         years_missing (list[int]): Years for which NTL data files (mean, median,
             mask) are not all present in storage.
         years_unavailable (list[int]): Years for which data is not (yet) available
