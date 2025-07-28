@@ -40,7 +40,7 @@ class ConLevelIntensity(Indicator, NormalizationMixin):
         quantile = self.indicator_config["normalization_quantile"]
         return self.conflict_normalize(df_indicator, self.composite_id, quantile)
 
-    def add_raw_indicator(
+    def add_raw_value(
         self, df_indicator: pd.DataFrame, df_preprocessed: pd.DataFrame
     ) -> pd.DataFrame:
         df_indicator[f"{self.composite_id}_raw"] = df_preprocessed["armed_violence_fatalities"]

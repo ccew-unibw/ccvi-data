@@ -1,9 +1,11 @@
 from collections.abc import Callable
 from datetime import date
 from functools import partial
+import gzip
 
 import numpy as np
 import pandas as pd
+import requests
 
 from base.objects import Dataset
 
@@ -50,7 +52,10 @@ class ILOData(Dataset):
         # downloading indicators from ILO web service (https://rplumber.ilo.org/__docs__/)
         for i in indicators:
             url = f"https://rplumber.ilo.org/data/indicator/?id={i}&timefrom={year_min}&format=.csv"
-            df_i = pd.read_csv(url, low_memory=False)
+            with requests.get(url, stream=True) as response:
+                response.raise_for_status()
+                with gzip.GzipFile(fileobj=response.raw) as decompressed_file:
+                    df_i = pd.read_csv(decompressed_file, low_memory=True)    # type: ignore
             df_i = df_i.drop_duplicates()  # input data seems not quite clean
             df_dict[i]["df"] = df_i
             df_dict[i]["name"] = indicators[i]
@@ -118,7 +123,7 @@ class ILOData(Dataset):
         countries = df_merge.index.get_level_values("iso3").unique()
         # remove regional aggregates
         countries = [country for country in countries if country[0] != "X"]
-        years = np.arange(self.global_config["start_year"], date.today().year + 1)
+        years = np.arange(self.global_config["start_year"]-5, date.today().year + 1)
         df_out = pd.DataFrame(
             data=zip(countries, [years for c in countries]), columns=["iso3", "year"]
         )
