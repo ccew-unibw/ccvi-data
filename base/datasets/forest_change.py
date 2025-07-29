@@ -1,15 +1,10 @@
-from collections.abc import Mapping
 from typing import Iterable, Any
 import numpy as np
-import pandas as pd
 import re
 import os
 
 import boto3
 import botocore
-from rich.progress import Progress
-import rioxarray as rxr
-import xarray as xr
 
 from base.objects import ConfigParser, Dataset, GlobalBaseGrid
 from utils.spatial_operations import pgid_to_coords, s_ceil, s_floor
@@ -46,7 +41,7 @@ class GFCData(Dataset):
         self.s3_client = boto3.client(
             "s3",
             endpoint_url="https://storage.googleapis.com",
-            config=botocore.client.Config(signature_version=botocore.UNSIGNED),
+            config=botocore.client.Config(signature_version=botocore.UNSIGNED),  # type: ignore
         )
         self.version = self._find_latest_forest_change_version()
         # check which files are already in storage
@@ -174,26 +169,26 @@ class GFCData(Dataset):
             self.console.print(
                 f"{len(files_to_download)}/{len(required_files)} potential files missing in storage. Expected are 63 based on 2024."
             )
-            with Progress(console=self.console) as progress:
-                task_download = progress.add_task("Downloading GFC", total=len(files_to_download))
-                for filename in files_to_download:
-                    object_key = f"{self.version}/{filename}"
-                    filepath = self.storage.build_filepath("processing", filename, filetype="")
-                    try:
-                        self.s3_client.download_file(self.bucket_name, object_key, filepath)
-                    except botocore.exceptions.ClientError as e:
-                        if e.response["Error"]["Code"] == "404":
-                            self.console.print(f"404 Error: File not found in bucket: {object_key}")
-                        else:
-                            self.console.print(f"Error downloading tile: {e}")
-                    progress.update(task_download, advance=1)
+            # with Progress(console=self.console) as progress:
+            #     task_download = progress.add_task("Downloading GFC", total=len(files_to_download))
+            #     for filename in files_to_download:
+            #         object_key = f"{self.version}/{filename}"
+            #         filepath = self.storage.build_filepath("processing", filename, filetype="")
+            #         try:
+            #             self.s3_client.download_file(self.bucket_name, object_key, filepath)
+            #         except botocore.exceptions.ClientError as e:
+            #             if e.response["Error"]["Code"] == "404":
+            #                 self.console.print(f"404 Error: File not found in bucket: {object_key}")
+            #             else:
+            #                 self.console.print(f"Error downloading tile: {e}")
+            #         progress.update(task_download, advance=1)
         self.data_loaded = True
         return
 
-    def get_dict_files(self, grid: GlobalBaseGrid) -> dict[str, dict[str, str | None] | None]:
+    def get_dict_files(self, grid: GlobalBaseGrid) -> dict[str, Any]:
         pgids = grid.load().reset_index()["pgid"].to_list()
         relevant_tiles = self.get_tiles_for_grid(pgids)
-        file_dict: dict[str, dict[str, str | None] | None] = {tile: {} for tile in relevant_tiles}
+        file_dict = {tile: {} for tile in relevant_tiles}
         layers = ["datamask", "lossyear", "treecover2000"]
         for tile in file_dict:
             for layer in layers:
@@ -204,16 +199,5 @@ class GFCData(Dataset):
                     else None
                 )
             if all(file_dict[tile][layer] is None for layer in layers):
-                file_dict[tile] = None
+                file_dict[tile] = None  # type: ignore
         return file_dict
-
-
-# test class
-if __name__ == "__main__":
-    config = ConfigParser()
-    grid = GlobalBaseGrid(config)
-    # Example usage
-    data = GFCData(config=config)
-    # just load the current data
-    # data.load_data(grid)
-    data.get_dict_tiles_files(grid)
