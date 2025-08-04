@@ -74,9 +74,11 @@ def get_vul_country_data():
     df_ilo = ilo.preproces_data_agrdep(ilo.load_data(ilo_indicators))
     df_agr = pd.concat([df_ilo, df_wb["agr_value_added"]], axis=1).sort_index()
     df_agr = ccvi.vul_socioeconomic_agriculture.clip_fill_data(df_agr)
-    df_agr["labor_force_agriculture"] = (df_agr['labor_force_participation']/100) * df_agr['agr_sector_share']
+    df_agr["labor_force_agriculture"] = (df_agr["labor_force_participation"] / 100) * df_agr[
+        "agr_sector_share"
+    ]
     df_wb = df_wb.drop(columns=["agr_value_added"])
-    
+
     df_swiid = swiid.preprocess_data(swiid.load_data())
     df_sdg = sdg.preprocess_data(sdg.load_data(["SN_ITK_DEFC"]))
     df_hdi = hdi.preprocess_data(hdi.load_data(["gii", "eys", "mys", "le"]))
@@ -144,7 +146,10 @@ class DimToolOutputWrapper:
         df = self.dimension.load_components(load_additional_values=True)
         # fill missing data with the last available observation
         imputer = PanelImputer(
-            time_index=["year", "quarter"], location_index="pgid", imputation_method="ffill"
+            time_index=["year", "quarter"],
+            location_index="pgid",
+            imputation_method="ffill",
+            parallelize=True,
         )
         df: pd.DataFrame = imputer.fit_transform(df)  # type: ignore
         if self.dimension.has_exposure:
@@ -253,7 +258,7 @@ class CCVIWrapper:
         risk scores, combines both. Also loads data recency and grid and stores
         everything
         """
-        self.console.print(f"Processing full data for dashboard output...")
+        self.console.print("Processing full data for dashboard output...")
         self.console.print("Load components...")
         dfs = [p.run() for p in [self.cli, self.con, self.vul]]
         df = pd.concat(dfs, axis=1)

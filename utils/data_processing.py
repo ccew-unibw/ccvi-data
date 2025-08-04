@@ -68,7 +68,8 @@ def default_impute(
         imputation_method="interpolate",
         interp_method="slinear",
         tail_behavior=["extrapolate", "None"],
-        parallel_kwargs={"n_jobs": 16, "verbose": 1},
+        parallelize=True,
+        parallel_kwargs={"n_jobs": -2, "verbose": 1},
     )
     df_out: pd.DataFrame = imputer.fit_transform(df)  # type: ignore
     return df_out

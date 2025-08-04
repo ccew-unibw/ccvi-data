@@ -1455,7 +1455,10 @@ class Dimension(AggregateScore):
             df = self.load_components()
             # fill missing data with the last available observation
             imputer = PanelImputer(
-                time_index=["year", "quarter"], location_index="pgid", imputation_method="ffill"
+                time_index=["year", "quarter"],
+                location_index="pgid",
+                imputation_method="ffill",
+                parallelize=True,
             )
             df: pd.DataFrame = imputer.fit_transform(df)  # type: ignore
             if self.has_exposure:

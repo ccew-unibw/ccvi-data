@@ -331,7 +331,8 @@ class WorldPopData(Dataset):
             imputation_method="interpolate",
             interp_method="slinear",
             tail_behavior=["fill", "extrapolate"],
-            parallel_kwargs={"n_jobs": 16, "verbose": 1},
+            parallelize=True,
+            parallel_kwargs={"n_jobs": -2, "verbose": 1},
         )
         df_out.update(
             imputer.fit_transform(df_out[["land_area", "pop_count", "pop_density"]]),  # type: ignore
