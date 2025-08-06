@@ -327,7 +327,11 @@ def assign_areas_to_grid(
             area_shares = dict(zip(clipped[area_col], clipped.area_share))
             return area_shares
 
-    areas = gpd.read_file(fp_areas, crs="epsg:4326")
+    
+    if fp_areas.endswith(".parquet"):
+        areas = gpd.read_parquet(fp_areas)
+    else:
+        areas = gpd.read_file(fp_areas, crs="epsg:4326")
     if not areas.geometry.is_valid.all():
         areas.geometry = areas.geometry.make_valid()
     if performance:
