@@ -209,57 +209,25 @@ def get_days_between_quarters(start_quarter, end_quarter):
     return df
 
 
-def aggregate(previous_quarter_12_months, last_quarter, df_anomaly):
-    df = df_anomaly.loc[
-        ((df_anomaly.quarter >= previous_quarter_12_months) & (df_anomaly.quarter <= last_quarter))
-    ]
-    df = df[["pgid", "count"]]
-    df = df.groupby(["pgid"]).sum().reset_index()
-    df["quarter"] = last_quarter
-    return df
-
 
 def aggregate_periods(df_anomaly, acronim, aggregation_level):
-    import pandas as pd
-
-    # drop record with na
-    df_anomaly = df_anomaly.dropna()
 
     if aggregation_level == "1yr":
-        out = []
-        # 1y moving windows aggregations:
-        current_quarter, last_quarter = get_current_past_quarter()
-        previous_quarter_x_months = last_quarter - 3
-        test_quarter_exists = True
-        while test_quarter_exists:
-            df = aggregate(previous_quarter_x_months, last_quarter, df_anomaly)
-            out.append(df)
-            last_quarter = last_quarter - 1
-            previous_quarter_x_months = last_quarter - 3
-            test_quarter_exists = check_quarter(previous_quarter_x_months, df_anomaly)
-            print(last_quarter, flush=True)
-
-        out = pd.concat(out)
-
-        return out
+    
+        df_anomaly[f"count"] = df_anomaly.groupby('pgid')["count"].rolling(window=4).sum().reset_index(0, drop=True)
+        df_anomaly.fillna(0, inplace=True)
+        return df_anomaly
 
     if aggregation_level == "7yr":
-        past_years = 7
-        out = []
-        # 7y moving windows aggregations:
-        current_quarter, last_quarter = get_current_past_quarter()
-        previous_quarter_x_months = last_quarter - 4 * past_years + 1
-        test_quarter_exists = True
-        while test_quarter_exists:
-            df = aggregate(previous_quarter_x_months, last_quarter, df_anomaly)
-            out.append(df)
-            last_quarter = last_quarter - 1
-            previous_quarter_x_months = last_quarter - 4 * past_years + 1
-            test_quarter_exists = check_quarter(previous_quarter_x_months, df_anomaly)
-            print(last_quarter, flush=True)
+        df_anomaly[f"count"] = df_anomaly.groupby('pgid')["count"].rolling(window=4).sum().reset_index(0, drop=True)
+        df_anomaly.fillna(0, inplace=True)
+        df_anomaly[f"count"] = df_anomaly.groupby('pgid')["count"].rolling(window=4*7).mean().reset_index(0, drop=True)
+        df_anomaly.fillna(0, inplace=True)
+        
+        return df_anomaly
+        
 
-        out = pd.concat(out)
-        return out
+    
 
 
 class NormalizationMixin:
@@ -270,6 +238,7 @@ class NormalizationMixin:
     def _TRANSFORMATION_MAP(self):
         return {
             "log1p": np.log1p,
+            "exp": np.exp,
             "custom_zero_if_negative": self._custom_zero_if_negative,
             None: None,
             "null": None,
