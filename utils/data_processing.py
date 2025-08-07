@@ -24,7 +24,7 @@ def add_time(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def create_data_structure_yearly(
+def create_custom_data_structure(
     base_grid: pd.DataFrame, year_start: int, year_end: int, quarterly: bool = True
 ) -> pd.DataFrame:
     """

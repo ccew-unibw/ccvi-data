@@ -14,7 +14,7 @@ import rioxarray as rxr
 import xarray as xr
 
 from base.objects import ConfigParser, Dataset, GlobalBaseGrid
-from utils.data_processing import create_data_structure_yearly
+from utils.data_processing import create_custom_data_structure
 from utils.index import get_quarter
 from utils.spatial_operations import coords_to_pgid, s_ceil, s_floor
 
@@ -351,7 +351,7 @@ class NTLData(Dataset):
             ]
 
             df_grid = grid.load()
-            df_yearly = create_data_structure_yearly(
+            df_yearly = create_custom_data_structure(
                 base_grid=df_grid,
                 year_start=self.global_config["start_year"],
                 year_end=get_quarter("last").year,

@@ -18,7 +18,7 @@ import yaml
 from utils.data_processing import (
     add_time,
     min_max_scaling,
-    create_data_structure_yearly,
+    create_custom_data_structure,
 )
 from utils.index import get_quarter
 from utils.spatial_operations import coords_to_pgid, s_ceil, s_floor
@@ -997,7 +997,7 @@ class Indicator(ABC):
         last_quarter = get_quarter("last")
 
         df_grid = self.grid.load()
-        df = create_data_structure_yearly(df_grid, year_min, last_quarter.year)
+        df = create_custom_data_structure(df_grid, year_min, last_quarter.year)
         # creating a datetime column for easier time cropping and time-based operations
         df = add_time(df)
         df = df.loc[df.time <= last_quarter]
