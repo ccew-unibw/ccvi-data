@@ -1,4 +1,5 @@
 from .acled import ACLEDData
+from .aqueduct import AqueductData
 from .berkley import BERKLEYData
 from .cpi import CPIData
 from .epr import EPRData
@@ -29,6 +30,7 @@ from .wpp import WPPData
 
 __all__ = [
     "ACLEDData",
+    "AqueductData",
     "BERKLEYData",
     "CPIData",
     "EPRData",
