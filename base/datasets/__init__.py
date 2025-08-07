@@ -1,6 +1,7 @@
 from .acled import ACLEDData
 from .aqueduct import AqueductData
 from .berkley import BERKLEYData
+from .bii import BIIData
 from .cpi import CPIData
 from .epr import EPRData
 from .diva_subsidence import DIVASubsidenceData
@@ -31,6 +32,7 @@ from .wpp import WPPData
 __all__ = [
     "ACLEDData",
     "AqueductData",
+    "BIIData",
     "BERKLEYData",
     "CPIData",
     "EPRData",
