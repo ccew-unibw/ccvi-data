@@ -3,8 +3,9 @@ from .aqueduct import AqueductData
 from .berkley import BERKLEYData
 from .bii import BIIData
 from .cpi import CPIData
-from .epr import EPRData
 from .diva_subsidence import DIVASubsidenceData
+from .epr import EPRData
+from .esdac import ESDACData
 from .ewds_floods import EWDSData
 from .forest_change import GFCData
 from .freedomhouse import FHData
@@ -20,6 +21,7 @@ from .modis_wildfires import MODISWildfiresData
 from .ntl import NTLData
 from .sdg import SDGData
 from .shdi import SubnationalHDIData
+from .soil_erosion import SoilErosionData
 from .spei import SPEIData
 from .swiid import SWIIDData
 from .unhcr import UNHCRData
@@ -36,6 +38,7 @@ __all__ = [
     "BERKLEYData",
     "CPIData",
     "EPRData",
+    "ESDACData",
     "DIVASubsidenceData",
     "EWDSData",
     "FHData",
@@ -51,6 +54,7 @@ __all__ = [
     "MODISWildfiresData",
     "NTLData",
     "SDGData",
+    "SoilErosionData",
     "SubnationalHDIData",
     "SPEIData",
     "SWIIDData",
