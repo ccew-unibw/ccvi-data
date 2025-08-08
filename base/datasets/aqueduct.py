@@ -43,9 +43,9 @@ class AqueductData(Dataset):
         with warnings.catch_warnings(category=RuntimeWarning):
             warnings.simplefilter("ignore")
             # baseline
-            df_base = gpd.read_file(self.data_config["aqueduct"], layer="baseline_annual")
+            df_base = gpd.read_file(self.data_config[self.data_key], layer="baseline_annual")
             # future
-            df_fut = gpd.read_file(self.data_config["aqueduct"], layer="future_annual")
+            df_fut = gpd.read_file(self.data_config[self.data_key], layer="future_annual")
 
         df_base = df_base[["pfaf_id"] + [c for c in df_base.columns if c.startswith("bws_")]]
         df_fut = df_fut[["pfaf_id", "geometry"] + [c for c in df_fut.columns if "bau30_ws_" in c]]
