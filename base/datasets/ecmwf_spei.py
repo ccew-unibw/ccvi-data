@@ -3,10 +3,29 @@ import os
 import pandas as pd
 from base.objects import Dataset, console
 from utils.index import get_quarter
+import numpy as np
 
+
+def mask_spei(data: pd.DataFrame, columns: list[str], storage: str, threshold: float = 0.75):
+    """
+    Mask SPEI data based on land cover. Masking is applied if combined share of barren and ice land exceeds a threshold.
+
+    """
+    spei_mask_fp = f"{storage}/spei_mask.parquet"
+    mask_df = pd.read_parquet(spei_mask_fp)
+    # data to be masked based on more than 80% barren land share
+    mask_df["mask"] = mask_df["combined_share"] > threshold
+    # For grid cells that need masking, I set their SPEI values to NaN
+    mask_map = mask_df.set_index("pgid")["mask"].to_dict()
+    for col in columns:
+        data[col] = data.apply(
+            lambda x: np.nan if mask_map.get(x.pgid, False) else x[col],
+            axis=1,
+        )
+    return data
 
 def to_bin(x):
-    import numpy as np
+    
 
     binsize = 0.5
     if x > 180:
@@ -336,6 +355,12 @@ class CDSECMWFSPEIData(Dataset):
 
             "lowercase all columns"
             df.columns = [col.lower() for col in df.columns]
+            df = df.fillna(0)
+            #mask with old spei mask
+            
+            storage =self.storage.storage_paths['processing'] 
+            df = mask_spei(df, ["spei12"], storage)
+    
             df = df.fillna(0)
 
             df.to_parquet(fp_preprocessed)
