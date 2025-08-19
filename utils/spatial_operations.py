@@ -246,7 +246,7 @@ def create_diffusion_layers(
 
 def assign_areas_to_grid(
     grid: gpd.GeoDataFrame,
-    fp_areas: str,
+    areas_in: str | gpd.GeoDataFrame,
     grid_col: str,
     area_col: str,
     grid_size: float = 0.5,
@@ -254,7 +254,7 @@ def assign_areas_to_grid(
 ) -> gpd.GeoDataFrame:
     """Assigns administrative area identifiers to grid cells based on spatial overlap.
 
-    This function takes a GeoDataFrame of grid cells and a filepath to a
+    This function takes a GeoDataFrame of grid cells and a (filepath to a)
     GeoDataFrame with area Polygons, e.g. admin1 areas. It determines which
     area(s) each grid cell belongs to. It stores either the matching area or a
     dictionary of {area: grid cell share} in case of multiple overlapping areas
@@ -279,8 +279,9 @@ def assign_areas_to_grid(
         grid (gpd.GeoDataFrame): Input GeoDataFrame of grid cells. If
             `performance=False`, it expects 'lat' and 'lon' columns representing
             grid cell centers (used for the reprojection to calculate areas).
-        fp_areas (str): Filepath to the vector file (e.g., shapefile, GeoPackage)
-            containing the area polygons. Expected to be in EPSG:4326.
+        areas_in (str | gpd.GeoDataFrame): Filepath to the vector file 
+            (e.g., shapefile, GeoPackage) or GeoDataFrame containing the area 
+            polygons. Expected to be in EPSG:4326.
         grid_col (str): The name of the new column to be created in the `grid`
             GeoDataFrame, which will store the assigned area identifier(s).
         area_col (str): The name of the column in the administrative areas
@@ -327,7 +328,14 @@ def assign_areas_to_grid(
             area_shares = dict(zip(clipped[area_col], clipped.area_share))
             return area_shares
 
-    areas = gpd.read_file(fp_areas, crs="epsg:4326")
+    if type(areas_in) is str:
+        if areas_in.endswith(".parquet"):
+            areas = gpd.read_parquet(areas_in)
+        else:
+            areas = gpd.read_file(areas_in, crs="epsg:4326")
+    else:
+        assert isinstance(areas_in, gpd.GeoDataFrame)
+        areas: gpd.GeoDataFrame = areas_in
     if not areas.geometry.is_valid.all():
         areas.geometry = areas.geometry.make_valid()
     if performance:

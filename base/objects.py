@@ -18,7 +18,7 @@ import yaml
 from utils.data_processing import (
     add_time,
     min_max_scaling,
-    create_data_structure_yearly,
+    create_custom_data_structure,
 )
 from utils.index import get_quarter
 from utils.spatial_operations import coords_to_pgid, s_ceil, s_floor
@@ -997,7 +997,7 @@ class Indicator(ABC):
         last_quarter = get_quarter("last")
 
         df_grid = self.grid.load()
-        df = create_data_structure_yearly(df_grid, year_min, last_quarter.year)
+        df = create_custom_data_structure(df_grid, year_min, last_quarter.year)
         # creating a datetime column for easier time cropping and time-based operations
         df = add_time(df)
         df = df.loc[df.time <= last_quarter]
@@ -1459,7 +1459,10 @@ class Dimension(AggregateScore):
             df = self.load_components()
             # fill missing data with the last available observation
             imputer = PanelImputer(
-                time_index=["year", "quarter"], location_index="pgid", imputation_method="ffill"
+                time_index=["year", "quarter"],
+                location_index="pgid",
+                imputation_method="ffill",
+                parallelize=True,
             )
             df: pd.DataFrame = imputer.fit_transform(df)  # type: ignore
             if self.has_exposure:
@@ -1641,7 +1644,8 @@ class Dataset(ABC):
         local (bool): Flag indicating if the data source is expected to be loaded
             from the local input folder. Defaults to True.
         needs_storage (bool): Flag indicating whether the dataset needs processing
-            storage. If False, no processing folder will be created.
+            storage. If False, no processing folder will be created. Defaults to
+            True.
         config (ConfigParser): The ConfigParser instance used for initialization.
         global_config (dict[str, Any]): Dictionary containing global settings.
         storage (StorageManager): Storage manager instance configured with

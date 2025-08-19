@@ -60,6 +60,13 @@ from vulnerability.demographic import (
     VulDemographicPopgrowth,
     VulDemographicUprooted,
 )
+from vulnerability.environmental import (
+    VulEnvironmentalBiodiversity,
+    VulEnvironmentalDeforestation,
+    VulEnvironmentalIrrigation,
+    VulEnvironmentalSoil,
+    VulEnvironmentalWater,
+)
 
 ### GLOBAL OBJECTS ###
 config = ConfigParser()
@@ -145,9 +152,29 @@ vul_demographic = Dimension(
     config=config,
     indicators=[vul_demographic_dependent, vul_demographic_popgrowth, vul_demographic_uprooted],
 )
+# Dim "environmental"
+vul_environmental_irrigation = VulEnvironmentalIrrigation(config=config, grid=base_grid)
+vul_environmental_biodiversity = VulEnvironmentalBiodiversity(config=config, grid=base_grid)
+vul_environmental_deforestation = VulEnvironmentalDeforestation(config=config, grid=base_grid)
+vul_environmental_soil = VulEnvironmentalSoil(config=config, grid=base_grid)
+vul_environmental_water = VulEnvironmentalWater(config=config, grid=base_grid)
+vul_environmental = Dimension(
+    "VUL",
+    "environmental",
+    config=config,
+    indicators=[
+        vul_environmental_irrigation,
+        vul_environmental_biodiversity,
+        vul_environmental_deforestation,
+        vul_environmental_soil,
+        vul_environmental_water,
+    ],
+)
 # Pillar
 vul_pillar = Pillar(
-    "VUL", config=config, dimensions=[vul_socioeconomic, vul_political, vul_demographic]
+    "VUL",
+    config=config,
+    dimensions=[vul_socioeconomic, vul_political, vul_demographic, vul_environmental],
 )
 ### CLIMATE ###
 # Dim "current"
@@ -434,6 +461,14 @@ if __name__ == "__main__":
     # vul_demographic_popgrowth.run()
     # vul_demographic_uprooted.run()
     # vul_demographic.run()
+
+    # ## Vulnerability dim "environmental"
+    # vul_environmental_irrigation.run()
+    # vul_environmental_biodiversity.run()
+    # vul_environmental_deforestation .run()
+    # vul_environmental_soil.run()
+    # vul_environmental_water.run()
+    # vul_environmental.run()
 
     ## vulnerability pillar
     # vul_pillar.run()

@@ -40,6 +40,7 @@ class ConSoctensIntensity(Indicator, NormalizationMixin):
             time_index=["year", "quarter"],
             location_index="pgid",
             imputation_method="ffill",
+            parallelize=True,
         )
         df_preprocessed["v2x_libdem"] = imputer.fit_transform(df_preprocessed[["v2x_libdem"]])
         return df_preprocessed

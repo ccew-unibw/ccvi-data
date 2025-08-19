@@ -24,7 +24,7 @@ def add_time(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def create_data_structure_yearly(
+def create_custom_data_structure(
     base_grid: pd.DataFrame, year_start: int, year_end: int, quarterly: bool = True
 ) -> pd.DataFrame:
     """
@@ -68,7 +68,8 @@ def default_impute(
         imputation_method="interpolate",
         interp_method="slinear",
         tail_behavior=["extrapolate", "None"],
-        parallel_kwargs={"n_jobs": 16, "verbose": 1},
+        parallelize=True,
+        parallel_kwargs={"n_jobs": -2, "verbose": 1},
     )
     df_out: pd.DataFrame = imputer.fit_transform(df)  # type: ignore
     return df_out

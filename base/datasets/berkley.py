@@ -198,4 +198,3 @@ if __name__ == "__main__":
     # just load the current data
 
     df_berkley = data.load_data()
-    print(df_berkley.head())
