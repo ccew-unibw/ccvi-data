@@ -1,11 +1,17 @@
 #https://xds-preprod.ecmwf.int/datasets/derived-drought-historical-monthly?tab=download
 import os
-import pandas as pd
-from base.objects import Dataset, console
-from utils.index import get_quarter
+import zipfile
+
+import cdsapi
+from dotenv import load_dotenv
 import numpy as np
+import pandas as pd
+import xarray as xr
 
+from base.objects import Dataset, ConfigParser
+from utils.index import get_quarter
 
+    
 def mask_spei(data: pd.DataFrame, columns: list[str], storage: str, threshold: float = 0.75):
     """
     Mask SPEI data based on land cover. Masking is applied if combined share of barren and ice land exceeds a threshold.
@@ -39,8 +45,7 @@ def get_days_in_month(year=1990, month="01"):
 
 
 def apirequest(outfilename="", year="1990", month="01"):
-    import cdsapi
-    from dotenv import load_dotenv
+
 
     load_dotenv()
     CDS_ECMWF_KEY = os.getenv("CDS_ECMWF_KEY")
@@ -83,15 +88,13 @@ def apirequest(outfilename="", year="1990", month="01"):
             c.retrieve(dataset, request, outfilename)
 
         except Exception as e:
-            print(e)
             print("failed to download the data, please check the CDS API key and the dataset availability.")
+            raise e
         
 
 
 def process_nc(ncfilepath):
     # read nc file``
-    import xarray as xr
-
     ds = xr.open_dataset(ncfilepath, engine="h5netcdf")
 
     # to pandas dataframe
@@ -138,29 +141,24 @@ class CDSECMWFSPEIData(Dataset):
 
     Attributes:
         data_key (str): Set to "cds_ecmwf_spei".
-        local (bool): Indicates whether to use local cds ecmwf spei dumps (True) or
-            download data via the cds ecmwf spei API (False).
+        local (bool): Set to False as data is downloaded via the ecmwf API.
         dataset_available (bool): Flag set to True after data is
             successfully loaded or checked by `load_data`.
     """
 
     data_key = "cdsecmwf_spei"
+    local = False
 
-    def __init__(self, local: bool = True, *args, **kwargs):
+    def __init__(self, config: ConfigParser, *args, **kwargs):
         """Initializes the cds ecmwf spei data source.
 
-        Sets the operation mode (local file vs API) and calls the Dataset
-        initializer to setup config and storage.
+        Sets up the availability flag and calls the Dataset initializer.
 
         Args:
             config (ConfigParser): An initialized ConfigParser instance.
-            local (bool, optional): Indicates whether to use local ewds
-                dumps (True) or download data via the ewds API (False).
         """
-        self.local = local
         self.dataset_available = False
-        self.data_keys = [self.data_key, "countries"]
-        super().__init__(*args, **kwargs)
+        super().__init__(config=config, *args, **kwargs)
 
     def download_data(self):
         """Downloads ewds data from the API.
@@ -171,14 +169,8 @@ class CDSECMWFSPEIData(Dataset):
         Returns:
             str: The filename of the downloaded ewds data.
         """
-        import xarray as xr
-        import zipfile
 
-        sources_path = self.storage.storage_paths["processing"]
-        destination = f"{sources_path}/CDS-ECMWF-SPEI/"
-
-        if not os.path.exists(destination):
-            os.makedirs(destination)
+        subfolder = f"CDS-ECMWF-SPEI/"
 
         # Generate dates from the start date to the last quarter
         start_date = pd.to_datetime("1990-01-01")
@@ -188,42 +180,35 @@ class CDSECMWFSPEIData(Dataset):
         last_day_previous_quarter = previous_quarter.end_time
 
         date_range = pd.date_range(start=start_date, end=last_day_previous_quarter, freq="M")
-        date_range = [(date.year, date.month) for date in date_range]
 
         for date in date_range:
-            year = str(date[0])
-            month = str(date[1]).zfill(2)
-            outfilename = f"{destination}/cdsecmwfspei12-{year}-{month}.zip"
-            print(
-                f"=========================start downloading  {year}-{month}==================================",
-                flush=True,
+            year = str(date.year)
+            month = str(date.month).zfill(2)
+            outfilename = self.storage.build_filepath("processing", f"cdsecmwfspei12-{year}-{month}", subfolder, ".zip")
+            self.console.print(
+                f"========================= downloading and unzipping {year}-{month}=================================="
             )
             if not os.path.exists(outfilename):
+                # download
                 apirequest(outfilename, year, month)
-
-        # unzip files
-        for date in date_range:
-            year = str(date[0])
-            month = str(date[1]).zfill(2)
-            zipfilepath = f"{destination}/cdsecmwfspei12-{year}-{month}.zip"
-            ncfilepath = f"{destination}/cdsecmwfspei12-{year}-{month}.nc"
-            print(
-                f"=========================unzipping {year}-{month}==================================",
-                flush=True,
-            )
-            if not os.path.exists(ncfilepath):
-                with zipfile.ZipFile(zipfilepath, "r") as zip_ref:
-                    zip_ref.extractall(ncfilepath)
+                # unzip files
+                ncfolder = outfilename.removesuffix(".zip")
+                
+                if not os.path.exists(ncfolder):
+                    with zipfile.ZipFile(outfilename, "r") as zip_ref:
+                        zip_ref.extractall(ncfolder)
 
         df_events = []
 
         for date in date_range:
-            year = str(date[0])
-            month = str(date[1]).zfill(2)
-            ncfilepath = f"{destination}/cdsecmwfspei12-{year}-{month}.nc/SPEI12_genlogistic_global_era5_moda_ref1991to2020_{year}{month}.nc"
+            year = str(date.year)
+            month = str(date.month).zfill(2)
+            ncfolder = self.storage.build_filepath("processing", f"cdsecmwfspei12-{year}-{month}", subfolder, "")
+
+            ncfilepath = f"{ncfolder}/SPEI12_genlogistic_global_era5_moda_ref1991to2020_{year}{month}.nc"
             if not os.path.exists(ncfilepath):
                 try:
-                    ncfilepath = f"{destination}/cdsecmwfspei12-{year}-{month}.nc/SPEI12_genlogistic_global_era5t_moda_ref1991to2020_{year}{month}.nc"
+                    ncfilepath = f"{ncfolder}/SPEI12_genlogistic_global_era5t_moda_ref1991to2020_{year}{month}.nc"
                     if not os.path.exists(ncfilepath):
                         raise FileNotFoundError
                 except FileNotFoundError:
@@ -232,7 +217,7 @@ class CDSECMWFSPEIData(Dataset):
                         flush=True,
                     )
                     
-            print(f"processing {ncfilepath}", flush=True)
+            self.console.print(f"processing {ncfilepath}")
             dfs = process_nc(ncfilepath)
             df_events.append(dfs)
         df_events = pd.concat(df_events)
@@ -255,12 +240,9 @@ class CDSECMWFSPEIData(Dataset):
         """Loads ewds data, checking for cached processing files first.
 
         Attempts to load a local ewds copy from the 'processing' storage
-        including the last completed quarter. If not found:
-        - If `self.local` is True, loads the raw dump specified in the config.
-          Raises an error if the provided ewds dump does not fully cover the
-          latest quarter.
-        - If `self.local` is False, currently raises NotImplementedError (API access TBD).
-        Saves the loaded raw/dump data to the processing storage.
+        including the last completed quarter. If not found, or 
+        regenerate["preprocessing"] is set to True, downloads the data and 
+        converts to gridded dataframe. Saves the preprocessed data to the processing storage.
 
         Returns:
             pd.DataFrame: The loaded ewds event data.
@@ -271,20 +253,13 @@ class CDSECMWFSPEIData(Dataset):
         )
         self.columns = ["YEAR", "EVENT_TYPE", "LATITUDE", "LONGITUDE", "COUNT", "EVENT_DATE"]
         try:
+            if self.regenerate["preprocessing"]:
+                raise FileNotFoundError
             df_event_level = self.storage.load("processing", filename=self.filename)
         except FileNotFoundError:
-            if self.local:
-                df_event_level = pd.read_parquet(self.data_config[self.data_key])
-                if df_event_level["EVENT_DATE"].max() < self.last_quarter_date:
-                    raise Exception(
-                        "preprocessed ewds data out of date, please provide a version up to "
-                        f"{self.last_quarter_date}."
-                    )
-            else:
-                self.download_data()
-                self.dataset_available = True
-                df_event_level = self.storage.load("processing", filename=self.filename)
-                return df_event_level
+            self.download_data()
+            df_event_level = self.storage.load("processing", filename=self.filename)
+            return df_event_level
 
         # Set an instance attribute for easy checking
         self.dataset_available = True
@@ -309,6 +284,11 @@ class CDSECMWFSPEIData(Dataset):
         Returns:
             pd.DataFrame: Dataframe aligned to index grid with quarterly ewds aggregates.
         """
+        # don't automatically start ewds download since those are separate step in the
+        # indicator logic that should each be performed deliberately
+        assert self.dataset_available, (
+            "ewds download/data check has not run, check indicator logic"
+        )
         fp_preprocessed = self.storage.build_filepath("processing", filename="preprocessed")
         try:
             df = pd.read_parquet(fp_preprocessed)
@@ -318,14 +298,8 @@ class CDSECMWFSPEIData(Dataset):
                 raise FileNotFoundError
             return df
         except FileNotFoundError:
-            console.print(
+            self.console.print(
                 "No preprocessed ewds data in storage or out of date," + " processing event data..."
-            )
-
-            # don't automatically start ewds download since those are separate step in the
-            # indicator logic that should each be performed deliberately
-            assert self.dataset_available, (
-                "ewds download/data check has not run, check indicator logic"
             )
 
             # quarter as number 1,2,3,4
@@ -369,14 +343,12 @@ class CDSECMWFSPEIData(Dataset):
 
 # test class
 if __name__ == "__main__":
-    from base.objects import ConfigParser
 
     config = ConfigParser()
 
     # Example usage
-    cdsecmwf_data = CDSECMWFSPEIData(local=False, config=config)
+    cdsecmwf_data = CDSECMWFSPEIData(config=config)
     # just load the current data
-    # df_ewds = ewds_data.load_data()
 
     df_cdsecmwf_data = cdsecmwf_data.load_data()
     print(df_cdsecmwf_data.head())
