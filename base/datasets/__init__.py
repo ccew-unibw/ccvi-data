@@ -1,8 +1,9 @@
 from .acled import ACLEDData
 from .berkley import BERKLEYData
 from .cpi import CPIData
-from .epr import EPRData
 from .diva_subsidence import DIVASubsidenceData
+from .ecmwf_spei import CDSECMWFSPEIData
+from .epr import EPRData
 from .ewds_floods import EWDSData
 from .freedomhouse import FHData
 from .gee_heatwave import GEEHeatwaveData
@@ -29,6 +30,7 @@ __all__ = [
     "ACLEDData",
     "BERKLEYData",
     "CPIData",
+    "CDSECMWFSPEIData",
     "EPRData",
     "DIVASubsidenceData",
     "EWDSData",
