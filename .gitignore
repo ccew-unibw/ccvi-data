@@ -7,7 +7,7 @@
 *.rds
 *test*/
 *.ipynb
-data/
+data
 gee_service_creds.json
 
 
