@@ -1,5 +1,8 @@
 from datetime import date
 import math
+
+import geopandas as gpd
+import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
@@ -14,7 +17,9 @@ class ACLEDData(Dataset):
     Implements `load_data()` to ingest an ACLED dataset dump or download the data
     via API (not yet implemented), storing a copy with the relevant columns in the
     processing folder.
-    Implements `create_grid_quarter_aggregates()` to transform raw events into
+    Implements `preprocess_data()` to match events with grid cells and quarters
+    and assign broader violence types.
+    Implements `create_grid_quarter_aggregates()` to transform events into
     quarterly aggregates at the grid cell level, including specific violence type
     event and fatality counts.
 
@@ -24,6 +29,8 @@ class ACLEDData(Dataset):
             download data via the ACLED API (False).
         acled_available (bool): Flag set to True after data is
             successfully loaded or checked by `load_data`.
+        acled_preprocessed (bool): Flag set to True after data is
+            successfully preprocessed by `preprocess_data`.
         grid (GlobalBaseGrid): GlobalBaseGrid instance, used to load the country
             basemap for coverage matching.
     """
@@ -45,6 +52,7 @@ class ACLEDData(Dataset):
         self.grid = grid
         self.local = local
         self.acled_available = False
+        self.acled_preprocessed = False
         super().__init__(config=config)
 
     def load_data(self):
@@ -85,6 +93,55 @@ class ACLEDData(Dataset):
         self.acled_available = True
         return df_acled
 
+    def preprocess_data(self, df_acled: pd.DataFrame) -> pd.DataFrame:
+        """Preprocesses ACLED data.
+
+        Assigns events to grid cells (pgid) and quarters, and adds violence
+        dummies for armed violence and unrest.
+
+        Event categorization:
+        - Armed violence: "Battles", "Explosions/Remote violence", "Violence against civilians"
+        - Unrest: "Protests", "Riots"
+
+        Args:
+            df_acled (pd.DataFrame): ACLED event-level data from `self.load_data`.
+
+        Returns:
+            pd.DataFrame: Dataframe aligned to index grid with quarterly ACLED aggregates.
+        """
+        df_acled.columns = [col.lower() for col in df_acled.columns]
+
+        # assign quarter
+        df_acled["quarter"] = list(df_acled["event_date"].apply(lambda x: math.ceil(x.month / 3)))
+        # useful for grouping data with sum()
+        df_acled["event_count"] = 1
+
+        # add violence type dummies
+        armed_violence = [
+            "Battles",
+            "Explosions/Remote violence",
+            "Violence against civilians",
+        ]
+        unrest = ["Protests", "Riots"]
+
+        df_acled["armed_violence"] = [
+            1 if event_type in armed_violence else 0 for event_type in df_acled["event_type"]
+        ]
+        df_acled["unrest"] = [
+            1 if event_type in unrest else 0 for event_type in df_acled["event_type"]
+        ]
+
+        # get grid cell for each event
+        df_acled["pgid"] = df_acled.apply(
+            lambda x: coords_to_pgid(round_grid(x["latitude"]), round_grid(x["longitude"])),
+            axis=1,
+        )
+
+        # run shape-based country matching
+        df_acled = self._match_countries(df_acled, self.grid.basemap)
+        self.acled_preprocessed = True
+        return df_acled
+
     def create_grid_quarter_aggregates(
         self,
         df_base: pd.DataFrame,
@@ -92,33 +149,33 @@ class ACLEDData(Dataset):
     ) -> pd.DataFrame:
         """Calculates grid-quarter aggregates from the event level ACLED data.
 
-        Assigns events to grid cells (pgid), calculates quarterly aggregates
-        (event counts, fatalities) for armed violence and unrest, merges with the
-        base grid structure, and fills missing values based on ACLED coverage
-        information.
-
-        Event categorization:
-        - Armed violence: "Battles", "Explosions/Remote violence", "Violence against civilians"
-        - Unrest: "Protests", "Riots"
+        Checks for existing cached file. If out of date, non existent or
+        regeneration is forced, runs preprocessing if not already performed,
+        calculates quarterly grid cell aggregates (event counts, fatalities) for
+        armed violence and unrest, merges with the base grid structure, and fills
+        missing values based on ACLED coverage information. Caches result and
+        updates acled regenerate
 
         Args:
             df_base (pd.DataFrame): Base data structure for indicator data.
-            df_acled (pd.DataFrame): ACLED event-level data from `self.load_data`.
+            df_acled (pd.DataFrame): Raw or preprocessed ACLED event-level data
+                from `load_data` or `preprocess_data`.
 
         Returns:
             pd.DataFrame: Dataframe aligned to index grid with quarterly ACLED aggregates.
         """
-        fp_preprocessed = self.storage.build_filepath("processing", filename="acled_preprocessed")
+        filename = "acled_grid_quarter_aggregates"
         try:
-            df = pd.read_parquet(fp_preprocessed)
+            if self.regenerate["preprocessing"]:
+                raise FileNotFoundError
+            df = self.storage.load("processing", filename)
             last_quarter_date = get_quarter("last")
             if df["time"].max() < last_quarter_date:
                 raise FileNotFoundError
             return df
         except FileNotFoundError:
             self.console.print(
-                "No preprocessed ACLED data in storage or out of date,"
-                + " processing event data..."
+                "No preprocessed ACLED data in storage or out of date, processing event data..."
             )
 
             # don't automatically start ACLED download since those are separate step in the
@@ -127,40 +184,17 @@ class ACLEDData(Dataset):
                 "ACLED download/data check has not run, check indicator logic"
             )
 
+            # check for raw input df based on acled_preprocessed attribute and run preprocessing
+            if not self.acled_preprocessed:
+                df_acled = self.preprocess_data(df_acled)
+
             # create grid and crop to countries - takes a few minutes
             df_base = self._add_acled_coverage_flag(df_base)
 
-            df_acled.columns = [col.lower() for col in df_acled.columns]
             df_acled = df_acled.loc[
                 df_acled["year"] >= df_base.index.get_level_values("year").min()
             ].copy()
-            # assign quarter
-            df_acled["quarter"] = list(
-                df_acled["event_date"].apply(lambda x: math.ceil(x.month / 3))
-            )
-            # useful for grouping data with sum()
-            df_acled["event_count"] = 1
 
-            # add violence type dummies
-            armed_violence = [
-                "Battles",
-                "Explosions/Remote violence",
-                "Violence against civilians",
-            ]
-            unrest = ["Protests", "Riots"]
-
-            df_acled["armed_violence"] = [
-                1 if event_type in armed_violence else 0 for event_type in df_acled["event_type"]
-            ]
-            df_acled["unrest"] = [
-                1 if event_type in unrest else 0 for event_type in df_acled["event_type"]
-            ]
-
-            # get grid cell for each event
-            df_acled["pgid"] = df_acled.apply(
-                lambda x: coords_to_pgid(round_grid(x["latitude"]), round_grid(x["longitude"])),
-                axis=1,
-            )
             # drop assignments outside the index grid
             df_acled = df_acled.loc[
                 df_acled["pgid"].isin(df_base.index.get_level_values("pgid").unique())
@@ -170,7 +204,8 @@ class ACLEDData(Dataset):
 
             # fill NAs with 0 where coverage exists
             df.loc[df["acled_coverage"]] = df.loc[df["acled_coverage"]].fillna(0)
-            self.storage.save(df, "processing", "acled_preprocessed")
+            self.storage.save(df, "processing", filename)
+            self.config.set_regenerated_globally("acled", "preprocessing")
         return df
 
     def _acled_counts_to_grid(self, df_data: pd.DataFrame, df_acled: pd.DataFrame) -> pd.DataFrame:
@@ -584,3 +619,31 @@ class ACLEDData(Dataset):
             lambda x: x["time"] >= df_countries.loc[x.iso3].coverage_start, axis=1
         )  # type: ignore - error due to progress_apply
         return df_data
+
+    def _match_countries(self, df: pd.DataFrame, countries: gpd.GeoDataFrame, column: str = "iso3"):
+        """Assigns a standard ISO3 country code to each ACLED event.
+
+        Matches events based on a spatial join of event coordinates and the
+        country geometries.
+
+        Prints number of events it is unable to assign this way.
+
+        Args:
+            df (pd.DataFrame): The DataFrame containing ACLED events.
+            countries (gpd.GeoDataFrame): A GeoDataFrame with country shapes.
+            column (str, optional): The name of the ISO3 column in the `countries`
+                GeoDataFrame. Defaults to "iso3".
+
+        Returns:
+            pd.DataFrame: The input DataFrame with an updated 'iso3' column.
+        """
+        df["iso3"] = np.nan
+        # geometry-based matching
+        df_geo = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.longitude, df.latitude))
+        for row in countries.itertuples():
+            df_country = df_geo.clip(gpd.GeoSeries(row.geometry))  # type: ignore
+            df.loc[df_country.index, "iso3"] = getattr(row, column)
+        events_dropped = sum(df.iso3.isna())
+
+        self.console.print(events_dropped, "events could not be assigned.")
+        return df.copy()
