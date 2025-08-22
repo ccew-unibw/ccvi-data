@@ -221,14 +221,11 @@ class PersistenceMixin:
         # initialization
         # start value
         value = series.iloc[0]
-        assert np.isnan(
-            value
-        )  # this is always the case with the variables, but added the check anyways in case something changes, as this would break the code below
         last_value = None
         time_since_conflict = 0
         output_list = []
         for x in series:
-            if np.isnan(value):  # before the coverage starts
+            if last_value is None:  # before the coverage starts or first timestep
                 value = x
                 if not np.isnan(x):
                     last_value = x  # 0 if no conflict
