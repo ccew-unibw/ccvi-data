@@ -205,7 +205,6 @@ class ACLEDData(Dataset):
             # fill NAs with 0 where coverage exists
             df.loc[df["acled_coverage"]] = df.loc[df["acled_coverage"]].fillna(0)
             self.storage.save(df, "processing", filename)
-            self.config.set_regenerated_globally("acled", "preprocessing")
         return df
 
     def _acled_counts_to_grid(self, df_data: pd.DataFrame, df_acled: pd.DataFrame) -> pd.DataFrame:
