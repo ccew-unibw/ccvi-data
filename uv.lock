@@ -277,7 +277,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=2.2.4" },
     { name = "openpyxl", specifier = ">=3.1.5" },
     { name = "pandas", specifier = ">=2.2.3" },
-    { name = "panel-imputer", specifier = ">=0.7.0" },
+    { name = "panel-imputer", specifier = "==0.7.1" },
     { name = "pendulum", specifier = ">=3.0.0" },
     { name = "pyarrow", specifier = ">=19.0.1" },
     { name = "pyeto", git = "https://github.com/woodcrafty/PyETo.git" },
@@ -1850,7 +1850,7 @@ wheels = [
 
 [[package]]
 name = "panel-imputer"
-version = "0.7.0"
+version = "0.7.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "joblib" },
@@ -1859,9 +1859,9 @@ dependencies = [
     { name = "scikit-learn" },
     { name = "tqdm" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/16/40/082ed47ccd37eeb8fd11c18a93e9afd6e3560cde3bff0cbe31e5159b8900/panel_imputer-0.7.0.tar.gz", hash = "sha256:c26c3237faacc96f931c9329b169d8229100cf13e12bf307f352cc9c711b3c45", size = 7027, upload-time = "2025-05-23T14:51:22.635Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/27/47/9e0c40ccf489296369cee0712c68a4dc1a1daf2830dbe38e4662071b057f/panel_imputer-0.7.1.tar.gz", hash = "sha256:30abc0e64e3b943ba9922889304a87feb3c641dc6cf826dea3a1ff51a5d1ad02", size = 7884, upload-time = "2025-08-04T17:03:15.615Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/be/47/992c87a6c76be3a3597fd9eef69c529b75ea7bab6bd17894ecf2f02275d9/panel_imputer-0.7.0-py3-none-any.whl", hash = "sha256:e31069506d359ed1b3c54e0ec02e0e6d4169cea269d79e5f616ec46693e12aa4", size = 7784, upload-time = "2025-05-23T14:51:21.403Z" },
+    { url = "https://files.pythonhosted.org/packages/72/d6/0f8c5a72cbe5a8315572ed24fb761efaec630a80184b65917f890c9c05eb/panel_imputer-0.7.1-py3-none-any.whl", hash = "sha256:af2077a77983129158f2b933d051575c6934bcc4b32c97402d29fa2b70ae4cdc", size = 8630, upload-time = "2025-08-04T17:03:14.445Z" },
 ]
 
 [[package]]

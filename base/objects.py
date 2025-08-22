@@ -18,7 +18,7 @@ import yaml
 from utils.data_processing import (
     add_time,
     min_max_scaling,
-    create_data_structure_yearly,
+    create_custom_data_structure,
 )
 from utils.index import get_quarter
 from utils.spatial_operations import coords_to_pgid, s_ceil, s_floor
@@ -180,7 +180,7 @@ class ConfigParser:
         """Modifies the global config in memory to mark a component as regenerated.
 
         This method removes the specified `id` from the regeneration lists
-        stored in `self.all_config['global']['regenerate']`. This prevents
+        stored in `self.all_config['global']['regenerate']` if found. This prevents
         subsequent calls to `get_regeneration_config` for the same `id` (and `key`)
         from returning True, effectively ensuring that a component is not
         unnecessarily regenerated multiple times within the same session if it was
@@ -997,7 +997,7 @@ class Indicator(ABC):
         last_quarter = get_quarter("last")
 
         df_grid = self.grid.load()
-        df = create_data_structure_yearly(df_grid, year_min, last_quarter.year)
+        df = create_custom_data_structure(df_grid, year_min, last_quarter.year)
         # creating a datetime column for easier time cropping and time-based operations
         df = add_time(df)
         df = df.loc[df.time <= last_quarter]
@@ -1207,7 +1207,7 @@ class AggregateScore:
     def _calculate_aggregate_score(
         self,
         df: pd.DataFrame,
-        method: Literal["mean", "pmean", "gmean", "conflict_pillar"],
+        method: Literal["mean", "pmean", "gmean"],
         ignore_nan: bool = False,
         weights: list[float] | None = None,
     ) -> list | np.ndarray:
@@ -1217,8 +1217,6 @@ class AggregateScore:
         - "mean": Arithmetic mean
         - "gmean": Geometric mean
         - "pmean": Quadratic mean
-        - "conflict_pillar": A custom aggregation specific to the conflict pillar
-
         It applies the chosen method row-wise to the input DataFrame.
 
         Args:
@@ -1235,26 +1233,6 @@ class AggregateScore:
             list[float] | np.ndarray: A list or array containing the aggregate score
                 for each row.
         """
-
-        def calculate_score_conflict(df: pd.DataFrame, ignore_nan: bool) -> list[float]:
-            """Custom aggregation function for the conflict Pillar."""
-            # bit scuffed due to the non-consistent logic
-            if ignore_nan:
-                nan_policy = "omit"
-            else:
-                nan_policy = "propagate"
-            df = df.copy()
-            df["CON_conflict"] = pmean(
-                df[["CON_level", "CON_persistence"]],
-                2,
-                axis=1,
-                nan_policy=nan_policy,  # type: ignore
-            )  # type: ignore
-            return (
-                df[["CON_conflict", "CON_conflict", "CON_soctens"]]
-                .mean(axis=1, skipna=ignore_nan)
-                .to_list()
-            )
 
         if weights is not None:
             assert len(weights) == df.shape[1]
@@ -1459,7 +1437,10 @@ class Dimension(AggregateScore):
             df = self.load_components()
             # fill missing data with the last available observation
             imputer = PanelImputer(
-                time_index=["year", "quarter"], location_index="pgid", imputation_method="ffill"
+                time_index=["year", "quarter"],
+                location_index="pgid",
+                imputation_method="ffill",
+                parallelize=True,
             )
             df: pd.DataFrame = imputer.fit_transform(df)  # type: ignore
             if self.has_exposure:
@@ -1641,7 +1622,8 @@ class Dataset(ABC):
         local (bool): Flag indicating if the data source is expected to be loaded
             from the local input folder. Defaults to True.
         needs_storage (bool): Flag indicating whether the dataset needs processing
-            storage. If False, no processing folder will be created.
+            storage. If False, no processing folder will be created. Defaults to
+            True.
         config (ConfigParser): The ConfigParser instance used for initialization.
         global_config (dict[str, Any]): Dictionary containing global settings.
         storage (StorageManager): Storage manager instance configured with

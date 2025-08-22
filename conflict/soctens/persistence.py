@@ -26,7 +26,7 @@ class ConSoctensPersistence(Indicator, NormalizationMixin, PersistenceMixin):
         return df_base
 
     def preprocess_data(self, df: pd.DataFrame) -> pd.DataFrame:
-        """No preprocessing necessary, keeping for consistency."""
+        """No preprocessing necessary."""
         return df
 
     def create_indicator(self, df_preprocessed: pd.DataFrame) -> pd.DataFrame:

@@ -7,13 +7,14 @@ import re
 import requests
 import os
 
+
 from dotenv import load_dotenv
 from rich.progress import Progress
 import rioxarray as rxr
 import xarray as xr
 
 from base.objects import ConfigParser, Dataset, GlobalBaseGrid
-from utils.data_processing import create_data_structure_yearly
+from utils.data_processing import create_custom_data_structure
 from utils.index import get_quarter
 from utils.spatial_operations import coords_to_pgid, s_ceil, s_floor
 
@@ -42,7 +43,8 @@ class NTLData(Dataset):
         years (list[int]): List of years for which NTL data is expected,
             going from global config's `start_year` up to the last complete year.
         ntl_files (list[str]): List of NTL filenames found in the processing
-            storage during initialization (or empty if `regenerate['data']` is True).
+            storage, set during initialization (set to empty if `regenerate['data']`
+            is True) and updated during `load_data()`.
         years_missing (list[int]): Years for which NTL data files (mean, median,
             mask) are not all present in storage.
         years_unavailable (list[int]): Years for which data is not (yet) available
@@ -349,7 +351,7 @@ class NTLData(Dataset):
             ]
 
             df_grid = grid.load()
-            df_yearly = create_data_structure_yearly(
+            df_yearly = create_custom_data_structure(
                 base_grid=df_grid,
                 year_start=self.global_config["start_year"],
                 year_end=get_quarter("last").year,

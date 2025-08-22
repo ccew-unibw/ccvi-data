@@ -14,7 +14,7 @@ import xarray as xr
 
 from base.objects import Dataset, GlobalBaseGrid, ConfigParser
 from base.datasets.wpp import WPPData
-from utils.data_processing import create_data_structure_yearly, slice_tuples
+from utils.data_processing import create_custom_data_structure, slice_tuples
 from utils.index import get_quarter
 from utils.spatial_operations import pgid_to_coords, s_ceil, s_floor
 
@@ -314,7 +314,7 @@ class WorldPopData(Dataset):
                 )
 
         self.console.print("Generating quarterly interpolated population data...")
-        df_base = create_data_structure_yearly(
+        df_base = create_custom_data_structure(
             grid.load(), self.global_config["start_year"], get_quarter("last").year, quarterly=True
         )
         df_wp["quarter"] = 4
@@ -331,7 +331,8 @@ class WorldPopData(Dataset):
             imputation_method="interpolate",
             interp_method="slinear",
             tail_behavior=["fill", "extrapolate"],
-            parallel_kwargs={"n_jobs": 16, "verbose": 1},
+            parallelize=True,
+            parallel_kwargs={"n_jobs": -2, "verbose": 1},
         )
         df_out.update(
             imputer.fit_transform(df_out[["land_area", "pop_count", "pop_density"]]),  # type: ignore
@@ -488,7 +489,7 @@ class WorldPopData(Dataset):
         years = np.arange(self.global_config["start_year"], get_quarter("last").year + 1)
         filename = "wp_index"
         # data is only yearly
-        df_base = create_data_structure_yearly(
+        df_base = create_custom_data_structure(
             grid.load(), self.global_config["start_year"], get_quarter("last").year, quarterly=False
         )
         df = df_base.reset_index().merge(

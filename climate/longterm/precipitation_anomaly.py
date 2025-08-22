@@ -1,5 +1,3 @@
-import os
-import sys
 import pandas as pd
 from utils.index import get_quarter
 
