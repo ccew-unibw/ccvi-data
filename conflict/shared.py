@@ -8,9 +8,41 @@ from base.objects import Indicator
 
 # pillar-specific standardizations via Mixin class here
 class NormalizationMixin:
+    """Provides a normalization workflow for conflict indicators.
+
+    This mixin class offers a standardized normalization method tailored to the
+    particulars of conflict data. Its primary public method, `conflict_normalize`,
+    implements a rolling window winsorization.
+    """
+
     def conflict_normalize(
-        self, df_indicator: pd.DataFrame, composite_id: str, quantile: float
+        self,
+        df_indicator: pd.DataFrame,
+        composite_id: str,
+        quantile: float,
+        start_year: int | None = None,
     ) -> pd.DataFrame:
+        """Applies normalization tailored for conflict indicators.
+
+        This method first calculates dynamic, time-based thresholds using a
+        rolling quantile average (`_quantile_avg`), then caps the indicator
+        values at these thresholds (`_limit_col`). Finally, it applies a
+        min-max scaling on a year-by-year basis to the capped data to produce
+        the 0-1 score.
+
+        Args:
+            df_indicator (pd.DataFrame): The DataFrame containing the indicator
+                data with a ('pgid', 'year', 'quarter') MultiIndex.
+            composite_id (str): The name of the indicator column to normalize.
+            quantile (float): The high quantile (e.g., 0.99) to use for
+                calculating the upper thresholds.
+            start_year (int, optional): Desired start year for the output data.
+                Defaults to None, resulting in no filtering
+
+        Returns:
+            pd.DataFrame: A DataFrame containing the normalized indicator column
+                and any other (e.g. raw) columns named with the same composite_id.
+        """
         thresholds = self._quantile_avg(df_indicator, composite_id, q=quantile)
         indicator = self._limit_col(df_indicator, composite_id, thresholds)
         years_limited = []
@@ -22,6 +54,11 @@ class NormalizationMixin:
             years_limited.append(part_limited)
         indicator_normalized = pd.concat(years_limited).sort_index()
         df_indicator[composite_id] = indicator_normalized
+        # sliding window approach results in some NAs at the start of the data
+        # cut at start year if argument specified, otherwise does nothing
+        df_indicator = df_indicator.loc[
+            (slice(None), slice(start_year, None), slice(None)), slice(None)
+        ]
         return df_indicator[[col for col in df_indicator.columns if composite_id in col]].copy()
 
     # Normalization
