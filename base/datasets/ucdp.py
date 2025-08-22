@@ -373,7 +373,7 @@ class UCDPData(Dataset):
 
         # assign year and quarter
         df["year"] = df.time.apply(lambda x: x.year)
-        df["quarter"] = df.time.apply(lambda x: math.ceil(x.month / 3) * 3 - 2)
+        df["quarter"] = df.time.apply(lambda x: math.ceil(x.month / 3))
         return df
 
     def _match_countries(self, df: pd.DataFrame, countries: gpd.GeoDataFrame, column: str = "iso3"):
