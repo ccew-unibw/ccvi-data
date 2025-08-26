@@ -18,7 +18,7 @@ class CliAccumulatedDrought(Indicator, NormalizationMixin):
         id: str = "drought",
     ):
         """Params defining indicator's place in index set to designed hierarchy by default"""
-        self.event_data = CDSECMWFSPEIData(local=False, config=config)
+        self.event_data = CDSECMWFSPEIData(config=config)
         super().__init__(pillar=pillar, dim=dim, id=id, config=config, grid=grid)
 
     def load_data(self) -> pd.DataFrame:
