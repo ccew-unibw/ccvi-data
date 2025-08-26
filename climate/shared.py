@@ -209,25 +209,28 @@ def get_days_between_quarters(start_quarter, end_quarter):
     return df
 
 
-
 def aggregate_periods(df_anomaly, acronim, aggregation_level):
-
     if aggregation_level == "1yr":
-    
-        df_anomaly[f"count"] = df_anomaly.groupby('pgid')["count"].rolling(window=4).sum().reset_index(0, drop=True)
+        df_anomaly[f"count"] = (
+            df_anomaly.groupby("pgid")["count"].rolling(window=4).sum().reset_index(0, drop=True)
+        )
         df_anomaly.fillna(0, inplace=True)
         return df_anomaly
 
     if aggregation_level == "7yr":
-        df_anomaly[f"count"] = df_anomaly.groupby('pgid')["count"].rolling(window=4).sum().reset_index(0, drop=True)
+        df_anomaly[f"count"] = (
+            df_anomaly.groupby("pgid")["count"].rolling(window=4).sum().reset_index(0, drop=True)
+        )
         df_anomaly.fillna(0, inplace=True)
-        df_anomaly[f"count"] = df_anomaly.groupby('pgid')["count"].rolling(window=4*7).mean().reset_index(0, drop=True)
+        df_anomaly[f"count"] = (
+            df_anomaly.groupby("pgid")["count"]
+            .rolling(window=4 * 7)
+            .mean()
+            .reset_index(0, drop=True)
+        )
         df_anomaly.fillna(0, inplace=True)
-        
-        return df_anomaly
-        
 
-    
+        return df_anomaly
 
 
 class NormalizationMixin:
@@ -252,7 +255,12 @@ class NormalizationMixin:
             return 0
 
     def climate_normalize(
-        self, df_indicator: pd.DataFrame, composite_id: str, indicator_config: dict, start_year: int
+        self,
+        df_indicator: pd.DataFrame,
+        composite_id: str,
+        indicator_config: dict,
+        start_year: int,
+        normalize_raw_col: bool = True,
     ) -> pd.DataFrame:
         # load transformation config
         transformation_func = self._TRANSFORMATION_MAP().get(indicator_config.get("transformation"))
@@ -264,9 +272,15 @@ class NormalizationMixin:
         # Fallback to identity if no transformation
         func = transformation_func if transformation_func else lambda x: x
 
+        # which col contains the value to use for normalization
+        if normalize_raw_col:
+            norm_col = f"{composite_id}_raw"
+        else:
+            norm_col = composite_id
+
         # Apply transformation and normalize
         df_indicator[f"{composite_id}"] = winsorization_normalization(
-            df_indicator[f"{composite_id}_raw"].apply(func), **kwargs
+            df_indicator[norm_col].apply(func), **kwargs
         )
 
         # Set index
