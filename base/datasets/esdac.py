@@ -14,8 +14,9 @@ class ESDACData(Dataset):
 
     Attributes:
         data_key (str): Set to "esdac".
-        upper_threshold (float): Normalization threshold, set by `preprocess_data()`
-            to store the value before interpolation.
+        upper_threshold (float): Normalization threshold (99th percentile), 
+            set by `preprocess_data()` before interpolation based on the original
+            input data.
     """
 
     data_key: str = "esdac"
