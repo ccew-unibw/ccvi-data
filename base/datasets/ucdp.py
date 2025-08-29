@@ -79,11 +79,12 @@ class UCDPData(Dataset):
             if self.regenerate["preprocessing"]:
                 raise FileNotFoundError
             max_date_data = df["date_end"].apply(self._convert_timestr).max()
-            df = self.storage.load("processing", "ucdp_preprocessed")
+            df_preprocessed = self.storage.load("processing", "ucdp_preprocessed")
             # rerun if max date does not match current version from load_data()
-            if df.time.max() < max_date_data:
+            if df_preprocessed.time.max() < max_date_data:
                 raise FileNotFoundError
             self.console.print("Existing preprocessed UCDP version loaded from storage.")
+            return df_preprocessed
 
         except FileNotFoundError:
             df = df.set_index("id")
@@ -98,7 +99,7 @@ class UCDPData(Dataset):
             self.console.print("Assigning events to quarters...")
             df = self._process_time(df)
             self.storage.save(df, "processing", "ucdp_preprocessed")
-        return df
+            return df
 
     def _update_ucdp(self, df: pd.DataFrame) -> pd.DataFrame:
         """Updates existing UCDP dataframe.
