@@ -127,11 +127,19 @@ aggregation:
   CON:
     level: 
       method: pmean
-      weights: None
+      weights: {
+        'CON_level_intensity': 2,
+        'CON_level_surrounding': 1,
+        'CON_level_persistence': 1
+        }
       normalize: True
     soctens:
       method: pmean
-      weights: None
+      weights: {
+        'CON_soctens_intensity': 2,
+        'CON_soctens_surrounding': 1,
+        'CON_soctens_persistence': 1
+        }
       normalize: True
     context:
       method: mean
@@ -205,7 +213,6 @@ global:
   regenerate:
     # specify list of indicator composite_id(s) to force regeneration of indicator calculation.
     indicator:
-      # - CON_context_actors
       # - VUL_political_ethnic
     # Specify list of indicator composite_id(s) or dataset data_key(s) to force regeneration of 
     # preprocessing.
