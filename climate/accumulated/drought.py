@@ -42,23 +42,26 @@ class CliAccumulatedDrought(Indicator, NormalizationMixin):
             print("-- df_base creation ...")
             df_base = self.create_base_df(start_year=df_event_data["EVENT_DATE"].dt.year.min())
             print("-- create_grid_quarter_aggregates ...")
-            df_preprocessed = self.event_data.create_grid_quarter_aggregates(df_base, df_event_data)
+            df_preprocessed = self.event_data.select_quarter_values(df_base, df_event_data)
             df_preprocessed.to_parquet(fp_preprocessed)
             return df_preprocessed
 
     def create_indicator(self, df_preprocessed: pd.DataFrame) -> pd.DataFrame:
         # Drought indicator
-        # mean of negative SPEI-12 values over the past seven years
+        # mean of negative SPEI-12 values over the past seven years for the respective quarter
 
         # the raw value should not be reversed and is thus negative
         # the indicator is based on values < 0, with higher values set to 0 for aggregation
         # the indicator score is reversed (so higher normalized values imply more severe drought)
 
         df_indicator = df_preprocessed[["pgid", "year", "quarter", "lat", "lon", "spei12"]]
-        df_indicator.rename(columns={"spei12": f"{self.composite_id}_raw"}, inplace=True)
-        df_indicator[self.composite_id] = df_indicator[f"{self.composite_id}_raw"].apply(lambda x: x * -1 if x < 0 or np.isnan(x) else 0)
+        df_indicator["spei12_n"] = df_indicator["spei12"].apply(lambda x: x * -1 if x < 0 or np.isnan(x) else 0)
+        
         #the mean of negative SPEI-12 values over the past seven years
-        df_indicator[f"{self.composite_id}_raw"] = df_indicator.groupby('pgid')[f"{self.composite_id}"].rolling(window=7*4).mean().to_list()
+        df_indicator = df_indicator.set_index(["pgid", "year", "quarter"]).sort_index()
+        means = df_indicator.groupby(['pgid', 'quarter'])["spei12_n"].rolling(window=7).mean()
+        means = means.reset_index(level=[0,1], drop=True).sort_index()
+        df_indicator[f"{self.composite_id}_raw"] = means
         return df_indicator
 
     def normalize(self, df_indicator: pd.DataFrame) -> pd.DataFrame:
