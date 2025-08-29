@@ -302,6 +302,7 @@ con_context = DimToolOutputWrapper(ccvi.con_context)
 vul_socioeconomic = DimToolOutputWrapper(ccvi.vul_socioeconomic)
 vul_political = DimToolOutputWrapper(ccvi.vul_political)
 vul_demographic = DimToolOutputWrapper(ccvi.vul_demographic)
+vul_environmental = DimToolOutputWrapper(ccvi.vul_environmental)
 
 # CLIMATE #
 cli_current = DimToolOutputWrapper(ccvi.cli_current)
@@ -322,4 +323,5 @@ if __name__ == "__main__":
     vul_socioeconomic.run()
     vul_political.run()
     vul_demographic.run()
+    vul_environmental.run()
     ccvi_tool.run()
