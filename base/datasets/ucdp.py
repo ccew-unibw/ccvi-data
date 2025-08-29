@@ -50,8 +50,7 @@ class UCDPData(Dataset):
             if self.regenerate["data"]:
                 raise FileNotFoundError
             ucdp = self.storage.load("processing", "ucdp_raw")
-            # TODO: uncomment below before commit
-            # ucdp = self._update_ucdp(ucdp)
+            ucdp = self._update_ucdp(ucdp)
         except FileNotFoundError:
             ucdp = self._download_ucpd()
             self.storage.save(ucdp, "processing", "ucdp_raw")
