@@ -6,6 +6,8 @@ from .cpi import CPIData
 from .diva_subsidence import DIVASubsidenceData
 from .epr import EPRData
 from .esdac import ESDACData
+from .ecmwf_spei import CDSECMWFSPEIData
+from .epr import EPRData
 from .ewds_floods import EWDSData
 from .forest_change import GFCData
 from .freedomhouse import FHData
@@ -37,6 +39,7 @@ __all__ = [
     "BIIData",
     "BERKLEYData",
     "CPIData",
+    "CDSECMWFSPEIData",
     "EPRData",
     "ESDACData",
     "DIVASubsidenceData",

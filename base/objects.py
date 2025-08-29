@@ -1102,7 +1102,11 @@ class Indicator(ABC):
                 == self.global_config["start_year"]
             ), "DataFrame df_indicator may not contain values before the defined start_year."
             self.storage.save(df_indicator)
-            self.generated = True
+            # rerun generated check
+            self.generated = self.storage.check_component_generated()
+            assert self.generated, (
+                "Indicator does not exist in storage or does not include data up to the last quarter, please doublecheck the implementation."
+            )
             self.console.print(f'Indicator "{self.composite_id}" generated successfully.')
             # set regenerate to false to make sure it does not get regenerated twice in one session:
             # for the instance:
