@@ -11,6 +11,7 @@ from base.objects import (
     StorageManager,
     console
 )
+from base.shared import ExposureDimension
 from utils.index import get_quarter
 
 # conflict indicators
@@ -40,7 +41,6 @@ from climate.longterm import (
     CliLongtermRelativeSeaLevel,
     CliLongtermTemperatureAnomaly,
 )
-from climate.shared import ClimateDimension
 
 # vulnerability indicators
 from vulnerability.socioeconomic import (
@@ -100,7 +100,10 @@ with console.status("Initializing CCVI components...", spinner="earth"):
     # Dim "context"
     con_context_actors = ConContextActors(config=config, grid=base_grid)
     con_context_country = ConContextCountry(config=config, grid=base_grid)
-    con_context = Dimension(
+    # all the ClimateDimension currently does is implement add_exposure 
+    # we use the same logic for this conflict dimension, so no need for a separate dimension and due to the dataset used cannot keep this in base
+    con_context = ExposureDimension(
+        base_grid,
         "CON",
         "context",
         config=config,
@@ -187,7 +190,7 @@ with console.status("Initializing CCVI components...", spinner="earth"):
     cli_current_wildfires = CliCurrentWildfires(config=config, grid=base_grid)
     cli_current_drought = CliCurrentDrought(config=config, grid=base_grid)
 
-    cli_current = ClimateDimension(
+    cli_current = ExposureDimension(
         base_grid,
         "CLI",
         "current",
@@ -211,7 +214,7 @@ with console.status("Initializing CCVI components...", spinner="earth"):
     cli_accumulated_wildfires = CliAccumulatedWildfires(config=config, grid=base_grid)
     cli_accumulated_drought = CliAccumulatedDrought(config=config, grid=base_grid)
 
-    cli_accumulated = ClimateDimension(
+    cli_accumulated = ExposureDimension(
         base_grid,
         "CLI",
         "accumulated",
@@ -231,7 +234,7 @@ with console.status("Initializing CCVI components...", spinner="earth"):
     cli_longterm_temperature_anomaly = CliLongtermTemperatureAnomaly(config=config, grid=base_grid)
     cli_longterm_precipitation_anomaly = CliLongtermPrecipitationAnomaly(config=config, grid=base_grid)
 
-    cli_longterm = ClimateDimension(
+    cli_longterm = ExposureDimension(
         base_grid,
         "CLI",
         "longterm",
