@@ -70,7 +70,10 @@ class ConContextActors(Indicator, NormalizationMixin):
             grouped, how="left", on=["iso3", "year", "quarter"]
         )
         df_indicator = df_indicator.set_index(["pgid", "year", "quarter"]).sort_index()
-        df_indicator = df_indicator.fillna(0)
+        df_indicator = df_indicator.rename(columns={"actor": f"{self.composite_id}_raw"})
+        # check for date before filling - no need to sort for columns since we drop most
+        max_time = df_indicator[~df_indicator.time.isna()].time.max()
+        df_indicator.loc[df_indicator["time"] <= max_time] = df_indicator.loc[df_indicator["time"] <= max_time].fillna(0)
         return df_indicator
 
     def normalize(self, df_indicator: pd.DataFrame) -> pd.DataFrame:
