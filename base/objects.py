@@ -180,7 +180,7 @@ class ConfigParser:
         """Modifies the global config in memory to mark a component as regenerated.
 
         This method removes the specified `id` from the regeneration lists
-        stored in `self.all_config['global']['regenerate']`. This prevents
+        stored in `self.all_config['global']['regenerate']` if found. This prevents
         subsequent calls to `get_regeneration_config` for the same `id` (and `key`)
         from returning True, effectively ensuring that a component is not
         unnecessarily regenerated multiple times within the same session if it was
@@ -1207,7 +1207,7 @@ class AggregateScore:
     def _calculate_aggregate_score(
         self,
         df: pd.DataFrame,
-        method: Literal["mean", "pmean", "gmean", "conflict_pillar"],
+        method: Literal["mean", "pmean", "gmean"],
         ignore_nan: bool = False,
         weights: list[float] | None = None,
     ) -> list | np.ndarray:
@@ -1217,8 +1217,6 @@ class AggregateScore:
         - "mean": Arithmetic mean
         - "gmean": Geometric mean
         - "pmean": Quadratic mean
-        - "conflict_pillar": A custom aggregation specific to the conflict pillar
-
         It applies the chosen method row-wise to the input DataFrame.
 
         Args:
@@ -1235,26 +1233,6 @@ class AggregateScore:
             list[float] | np.ndarray: A list or array containing the aggregate score
                 for each row.
         """
-
-        def calculate_score_conflict(df: pd.DataFrame, ignore_nan: bool) -> list[float]:
-            """Custom aggregation function for the conflict Pillar."""
-            # bit scuffed due to the non-consistent logic
-            if ignore_nan:
-                nan_policy = "omit"
-            else:
-                nan_policy = "propagate"
-            df = df.copy()
-            df["CON_conflict"] = pmean(
-                df[["CON_level", "CON_persistence"]],
-                2,
-                axis=1,
-                nan_policy=nan_policy,  # type: ignore
-            )  # type: ignore
-            return (
-                df[["CON_conflict", "CON_conflict", "CON_soctens"]]
-                .mean(axis=1, skipna=ignore_nan)
-                .to_list()
-            )
 
         if weights is not None:
             assert len(weights) == df.shape[1]

@@ -1,6 +1,7 @@
 import math
 
 import pandas as pd
+
 from base.objects import (
     Dimension,
     ConfigParser,
@@ -8,13 +9,15 @@ from base.objects import (
     Pillar,
     AggregateScore,
     StorageManager,
+    console
 )
+from base.shared import ExposureDimension
 from utils.index import get_quarter
 
 # conflict indicators
-from conflict.level import ConLevelIntensity, ConLevelSurrounding
-from conflict.persistence import ConPersistenceIntensity, ConPersistenceSurrounding
+from conflict.level import ConLevelIntensity, ConLevelSurrounding, ConLevelPersistence
 from conflict.soctens import ConSoctensIntensity, ConSoctensPersistence, ConSoctensSurrounding
+from conflict.context import ConContextActors, ConContextCountry
 
 # climate indicators
 from climate.current import (
@@ -38,7 +41,6 @@ from climate.longterm import (
     CliLongtermRelativeSeaLevel,
     CliLongtermTemperatureAnomaly,
 )
-from climate.shared import ClimateDimension
 
 # vulnerability indicators
 from vulnerability.socioeconomic import (
@@ -68,181 +70,184 @@ from vulnerability.environmental import (
     VulEnvironmentalWater,
 )
 
-### GLOBAL OBJECTS ###
-config = ConfigParser()
-base_grid = GlobalBaseGrid(config=config)
+with console.status("Initializing CCVI components...", spinner="earth"):
+    ### GLOBAL OBJECTS ###
+    config = ConfigParser()
+    base_grid = GlobalBaseGrid(config=config)
 
-### CONFLICT ###
-# Dim "level"
-con_level_intensity = ConLevelIntensity(config=config, grid=base_grid)
-con_level_surrounding = ConLevelSurrounding(config=config, grid=base_grid)
-con_level = Dimension(
-    "CON", "level", config=config, indicators=[con_level_intensity, con_level_surrounding]
-)
-# Dim "persistence"
-con_persistence_intensity = ConPersistenceIntensity(
-    config=config, grid=base_grid, base_indicator=con_level_intensity
-)
-con_persistence_surrounding = ConPersistenceSurrounding(
-    config=config, grid=base_grid, base_indicator=con_level_surrounding
-)
-con_persistence = Dimension(
-    "CON",
-    "persistence",
-    config=config,
-    indicators=[con_persistence_intensity, con_persistence_surrounding],
-)
-# Dim "soctens"
-con_soctens_intensity = ConSoctensIntensity(config=config, grid=base_grid)
-con_soctens_persistence = ConSoctensPersistence(
-    config=config, grid=base_grid, base_indicator=con_soctens_intensity
-)
-con_soctens_surrounding = ConSoctensSurrounding(config=config, grid=base_grid)
-con_soctens = Dimension(
-    "CON",
-    "soctens",
-    config=config,
-    indicators=[con_soctens_intensity, con_soctens_persistence, con_soctens_surrounding],
-)
-con_pillar = Pillar("CON", config=config, dimensions=[con_level, con_persistence, con_soctens])
-### VULNERABILITY ###
-# Dim "socioeconomic"
-vul_socioeconomic_agriculture = VulSocioeconomicAgriculture(config=config, grid=base_grid)
-vul_socioeconomic_deprivation = VulSocioeconomicDeprivation(config=config, grid=base_grid)
-vul_socioeconomic_education = VulSocioeconomicEducation(config=config, grid=base_grid)
-vul_socioeconomic_health = VulSocioeconomicHealth(config=config, grid=base_grid)
-vul_socioeconomic_inequality = VulSocioeconomicInequality(config=config, grid=base_grid)
-vul_socioeconomic_hunger = VulSocioeconomicHunger(config=config, grid=base_grid)
-vul_socioeconomic = Dimension(
-    "VUL",
-    "socioeconomic",
-    config=config,
-    indicators=[
-        vul_socioeconomic_agriculture,
-        vul_socioeconomic_deprivation,
-        vul_socioeconomic_education,
-        vul_socioeconomic_health,
-        vul_socioeconomic_inequality,
-        vul_socioeconomic_hunger,
-    ],
-)
-# Dim "political"
-vul_political_ethnic = VulPoliticalEthnic(config=config, grid=base_grid)
-vul_political_gender = VulPoliticalGender(config=config, grid=base_grid)
-vul_political_institutions = VulPoliticalInstitutions(config=config, grid=base_grid)
-vul_political_system = VulPoliticalSystem(config=config, grid=base_grid)
-vul_political = Dimension(
-    "VUL",
-    "political",
-    config=config,
-    indicators=[
-        vul_political_ethnic,
-        vul_political_gender,
-        vul_political_institutions,
-        vul_political_system,
-    ],
-)
-# Dim "demographic"
-vul_demographic_dependent = VulDemographicDependent(config=config, grid=base_grid)
-vul_demographic_popgrowth = VulDemographicPopgrowth(config=config, grid=base_grid)
-vul_demographic_uprooted = VulDemographicUprooted(config=config, grid=base_grid)
-vul_demographic = Dimension(
-    "VUL",
-    "demographic",
-    config=config,
-    indicators=[vul_demographic_dependent, vul_demographic_popgrowth, vul_demographic_uprooted],
-)
-# Dim "environmental"
-vul_environmental_irrigation = VulEnvironmentalIrrigation(config=config, grid=base_grid)
-vul_environmental_biodiversity = VulEnvironmentalBiodiversity(config=config, grid=base_grid)
-vul_environmental_deforestation = VulEnvironmentalDeforestation(config=config, grid=base_grid)
-vul_environmental_soil = VulEnvironmentalSoil(config=config, grid=base_grid)
-vul_environmental_water = VulEnvironmentalWater(config=config, grid=base_grid)
-vul_environmental = Dimension(
-    "VUL",
-    "environmental",
-    config=config,
-    indicators=[
-        vul_environmental_irrigation,
-        vul_environmental_biodiversity,
-        vul_environmental_deforestation,
-        vul_environmental_soil,
-        vul_environmental_water,
-    ],
-)
-# Pillar
-vul_pillar = Pillar(
-    "VUL",
-    config=config,
-    dimensions=[vul_socioeconomic, vul_political, vul_demographic, vul_environmental],
-)
-### CLIMATE ###
-# Dim "current"
-cli_current_floods = CliCurrentFloods(config=config, grid=base_grid)
-cli_current_cyclones = CliCurrentCyclones(config=config, grid=base_grid)
-cli_current_heavy_precipitation = CliCurrentHeavyPrecipitation(config=config, grid=base_grid)
-cli_current_heatwave = CliCurrentHeatwave(config=config, grid=base_grid)
-cli_current_wildfires = CliCurrentWildfires(config=config, grid=base_grid)
-cli_current_drought = CliCurrentDrought(config=config, grid=base_grid)
+    ### CONFLICT ###
+    # Dim "level"
+    con_level_intensity = ConLevelIntensity(config=config, grid=base_grid)
+    con_level_surrounding = ConLevelSurrounding(config=config, grid=base_grid)
+    con_level_persistence = ConLevelPersistence(config=config, grid=base_grid, base_indicator=con_level_intensity)
+    con_level = Dimension(
+        "CON", "level", config=config, indicators=[con_level_intensity, con_level_surrounding, con_level_persistence]
+    )
 
-cli_current = ClimateDimension(
-    base_grid,
-    "CLI",
-    "current",
-    config=config,
-    indicators=[
-        cli_current_floods,
-        cli_current_cyclones,
-        cli_current_heavy_precipitation,
-        cli_current_heatwave,
-        cli_current_wildfires,
-        cli_current_drought,
-    ],
-)
-# Dim "accumulated"
-cli_accumulated_floods = CliAccumulatedFloods(config=config, grid=base_grid)
-cli_accumulated_cyclones = CliAccumulatedCyclones(config=config, grid=base_grid)
-cli_accumulated_heavy_precipitation = CliAccumulatedHeavyPrecipitation(
-    config=config, grid=base_grid
-)
-cli_accumulated_heatwave = CliAccumulatedHeatwave(config=config, grid=base_grid)
-cli_accumulated_wildfires = CliAccumulatedWildfires(config=config, grid=base_grid)
-cli_accumulated_drought = CliAccumulatedDrought(config=config, grid=base_grid)
+    # Dim "soctens"
+    con_soctens_intensity = ConSoctensIntensity(config=config, grid=base_grid)
+    con_soctens_persistence = ConSoctensPersistence(
+        config=config, grid=base_grid, base_indicator=con_soctens_intensity
+    )
+    con_soctens_surrounding = ConSoctensSurrounding(config=config, grid=base_grid)
+    con_soctens = Dimension(
+        "CON",
+        "soctens",
+        config=config,
+        indicators=[con_soctens_intensity, con_soctens_persistence, con_soctens_surrounding],
+    )
 
-cli_accumulated = ClimateDimension(
-    base_grid,
-    "CLI",
-    "accumulated",
-    config=config,
-    indicators=[
-        cli_accumulated_floods,
-        cli_accumulated_cyclones,
-        cli_accumulated_heavy_precipitation,
-        cli_accumulated_heatwave,
-        cli_accumulated_wildfires,
-        cli_accumulated_drought,
-    ],
-)
+    # Dim "context"
+    con_context_actors = ConContextActors(config=config, grid=base_grid)
+    con_context_country = ConContextCountry(config=config, grid=base_grid)
+    # all the ClimateDimension currently does is implement add_exposure 
+    # we use the same logic for this conflict dimension, so no need for a separate dimension and due to the dataset used cannot keep this in base
+    con_context = ExposureDimension(
+        base_grid,
+        "CON",
+        "context",
+        config=config,
+        indicators=[con_context_actors, con_context_country],
+    )
+    con_pillar = Pillar("CON", config=config, dimensions=[con_level, con_soctens, con_context])
+    ### VULNERABILITY ###
+    # Dim "socioeconomic"
+    vul_socioeconomic_agriculture = VulSocioeconomicAgriculture(config=config, grid=base_grid)
+    vul_socioeconomic_deprivation = VulSocioeconomicDeprivation(config=config, grid=base_grid)
+    vul_socioeconomic_education = VulSocioeconomicEducation(config=config, grid=base_grid)
+    vul_socioeconomic_health = VulSocioeconomicHealth(config=config, grid=base_grid)
+    vul_socioeconomic_inequality = VulSocioeconomicInequality(config=config, grid=base_grid)
+    vul_socioeconomic_hunger = VulSocioeconomicHunger(config=config, grid=base_grid)
+    vul_socioeconomic = Dimension(
+        "VUL",
+        "socioeconomic",
+        config=config,
+        indicators=[
+            vul_socioeconomic_agriculture,
+            vul_socioeconomic_deprivation,
+            vul_socioeconomic_education,
+            vul_socioeconomic_health,
+            vul_socioeconomic_inequality,
+            vul_socioeconomic_hunger,
+        ],
+    )
+    # Dim "political"
+    vul_political_ethnic = VulPoliticalEthnic(config=config, grid=base_grid)
+    vul_political_gender = VulPoliticalGender(config=config, grid=base_grid)
+    vul_political_institutions = VulPoliticalInstitutions(config=config, grid=base_grid)
+    vul_political_system = VulPoliticalSystem(config=config, grid=base_grid)
+    vul_political = Dimension(
+        "VUL",
+        "political",
+        config=config,
+        indicators=[
+            vul_political_ethnic,
+            vul_political_gender,
+            vul_political_institutions,
+            vul_political_system,
+        ],
+    )
+    # Dim "demographic"
+    vul_demographic_dependent = VulDemographicDependent(config=config, grid=base_grid)
+    vul_demographic_popgrowth = VulDemographicPopgrowth(config=config, grid=base_grid)
+    vul_demographic_uprooted = VulDemographicUprooted(config=config, grid=base_grid)
+    vul_demographic = Dimension(
+        "VUL",
+        "demographic",
+        config=config,
+        indicators=[vul_demographic_dependent, vul_demographic_popgrowth, vul_demographic_uprooted],
+    )
+    # Dim "environmental"
+    vul_environmental_irrigation = VulEnvironmentalIrrigation(config=config, grid=base_grid)
+    vul_environmental_biodiversity = VulEnvironmentalBiodiversity(config=config, grid=base_grid)
+    vul_environmental_deforestation = VulEnvironmentalDeforestation(config=config, grid=base_grid)
+    vul_environmental_soil = VulEnvironmentalSoil(config=config, grid=base_grid)
+    vul_environmental_water = VulEnvironmentalWater(config=config, grid=base_grid)
+    vul_environmental = Dimension(
+        "VUL",
+        "environmental",
+        config=config,
+        indicators=[
+            vul_environmental_irrigation,
+            vul_environmental_biodiversity,
+            vul_environmental_deforestation,
+            vul_environmental_soil,
+            vul_environmental_water,
+        ],
+    )
+    # Pillar
+    vul_pillar = Pillar(
+        "VUL",
+        config=config,
+        dimensions=[vul_socioeconomic, vul_political, vul_demographic, vul_environmental],
+    )
+    ### CLIMATE ###
+    # Dim "current"
+    cli_current_floods = CliCurrentFloods(config=config, grid=base_grid)
+    cli_current_cyclones = CliCurrentCyclones(config=config, grid=base_grid)
+    cli_current_heavy_precipitation = CliCurrentHeavyPrecipitation(config=config, grid=base_grid)
+    cli_current_heatwave = CliCurrentHeatwave(config=config, grid=base_grid)
+    cli_current_wildfires = CliCurrentWildfires(config=config, grid=base_grid)
+    cli_current_drought = CliCurrentDrought(config=config, grid=base_grid)
 
-# Dim "longterm"
-cli_longterm_relative_sea_level = CliLongtermRelativeSeaLevel(config=config, grid=base_grid)
-cli_longterm_temperature_anomaly = CliLongtermTemperatureAnomaly(config=config, grid=base_grid)
-cli_longterm_precipitation_anomaly = CliLongtermPrecipitationAnomaly(config=config, grid=base_grid)
+    cli_current = ExposureDimension(
+        base_grid,
+        "CLI",
+        "current",
+        config=config,
+        indicators=[
+            cli_current_floods,
+            cli_current_cyclones,
+            cli_current_heavy_precipitation,
+            cli_current_heatwave,
+            cli_current_wildfires,
+            cli_current_drought,
+        ],
+    )
+    # Dim "accumulated"
+    cli_accumulated_floods = CliAccumulatedFloods(config=config, grid=base_grid)
+    cli_accumulated_cyclones = CliAccumulatedCyclones(config=config, grid=base_grid)
+    cli_accumulated_heavy_precipitation = CliAccumulatedHeavyPrecipitation(
+        config=config, grid=base_grid
+    )
+    cli_accumulated_heatwave = CliAccumulatedHeatwave(config=config, grid=base_grid)
+    cli_accumulated_wildfires = CliAccumulatedWildfires(config=config, grid=base_grid)
+    cli_accumulated_drought = CliAccumulatedDrought(config=config, grid=base_grid)
 
-cli_longterm = ClimateDimension(
-    base_grid,
-    "CLI",
-    "longterm",
-    config=config,
-    indicators=[
-        cli_longterm_relative_sea_level,
-        cli_longterm_temperature_anomaly,
-        cli_longterm_precipitation_anomaly,
-    ],
-)
-# Pillar
-cli_pillar = Pillar("CLI", config=config, dimensions=[cli_current, cli_accumulated, cli_longterm])
+    cli_accumulated = ExposureDimension(
+        base_grid,
+        "CLI",
+        "accumulated",
+        config=config,
+        indicators=[
+            cli_accumulated_floods,
+            cli_accumulated_cyclones,
+            cli_accumulated_heavy_precipitation,
+            cli_accumulated_heatwave,
+            cli_accumulated_wildfires,
+            cli_accumulated_drought,
+        ],
+    )
 
+    # Dim "longterm"
+    cli_longterm_relative_sea_level = CliLongtermRelativeSeaLevel(config=config, grid=base_grid)
+    cli_longterm_temperature_anomaly = CliLongtermTemperatureAnomaly(config=config, grid=base_grid)
+    cli_longterm_precipitation_anomaly = CliLongtermPrecipitationAnomaly(config=config, grid=base_grid)
+
+    cli_longterm = ExposureDimension(
+        base_grid,
+        "CLI",
+        "longterm",
+        config=config,
+        indicators=[
+            cli_longterm_relative_sea_level,
+            cli_longterm_temperature_anomaly,
+            cli_longterm_precipitation_anomaly,
+        ],
+    )
+    # Pillar
+    cli_pillar = Pillar("CLI", config=config, dimensions=[cli_current, cli_accumulated, cli_longterm])
+    console.print(":globe_showing_europe-africa: Initializing CCVI components... [bold green]DONE[/bold green]")
 
 class CCVI(AggregateScore):
     """Orchestrates calculation the CCVI from indicator to risk scores.

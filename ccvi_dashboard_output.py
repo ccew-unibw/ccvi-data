@@ -295,8 +295,8 @@ class CCVIWrapper:
 
 # CONFLICT #
 con_level = DimToolOutputWrapper(ccvi.con_level)
-con_persistence = DimToolOutputWrapper(ccvi.con_persistence)
 con_soctens = DimToolOutputWrapper(ccvi.con_soctens)
+con_context = DimToolOutputWrapper(ccvi.con_context)
 
 # VULNERABILITY #
 vul_socioeconomic = DimToolOutputWrapper(ccvi.vul_socioeconomic)
@@ -317,7 +317,7 @@ if __name__ == "__main__":
     cli_accumulated.run()
     cli_longterm.run()
     con_level.run()
-    con_persistence.run()
+    con_context.run()
     con_soctens.run()
     vul_socioeconomic.run()
     vul_political.run()

@@ -26,6 +26,7 @@ from .shdi import SubnationalHDIData
 from .soil_erosion import SoilErosionData
 from .spei import SPEIData
 from .swiid import SWIIDData
+from .ucdp import UCDPData
 from .unhcr import UNHCRData
 from .vdem import VDemData
 from .worldbank import WBData
@@ -62,6 +63,7 @@ __all__ = [
     "SPEIData",
     "SWIIDData",
     "UNHCRData",
+    "UCDPData",
     "VDemData",
     "WBData",
     "WorldPopData",
