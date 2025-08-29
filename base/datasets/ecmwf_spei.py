@@ -1,4 +1,4 @@
-#https://xds-preprod.ecmwf.int/datasets/derived-drought-historical-monthly?tab=download
+# https://xds-preprod.ecmwf.int/datasets/derived-drought-historical-monthly?tab=download
 import os
 import zipfile
 
@@ -65,7 +65,8 @@ def create_spei_mask(fp: str):
     ]
     df.to_parquet(fp)
     return
-    
+
+
 def mask_spei(data: pd.DataFrame, columns: list[str], storage: str, threshold: float = 0.75):
     """
     Mask SPEI data based on land cover. Masking is applied if combined share of barren and ice land exceeds a threshold.
@@ -99,8 +100,38 @@ def get_days_in_month(year=1990, month="01"):
     return [str(i).zfill(2) for i in range(1, days_in_month + 1)]
 
 
-def apirequest(outfilename: str, month: int, year:int|None = None, var:str="standardised_precipitation_evapotranspiration_index") -> str:
+def apirequest(
+    outfilename: str,
+    month: int,
+    year: int | None = None,
+    var: str = "standardised_precipitation_evapotranspiration_index",
+) -> str:
+    """Submits a data retrieval request to the CDS API for ECMWF SPEI data.
+
+    This function constructs and sends a request to the Copernicus Climate Data
+    Store (CDS) API to download SPEI data for a specific variable, month, and
+    optional year. It is designed to handle different dataset types, first
+    attempting to download the final "consolidated_dataset" and falling back
+    to the "intermediate_dataset" if the former is not yet available for the
+    requested period. Requires `CDS_ECMWF_KEY` to be set as an environment variable.
+
+    Args:
+        outfilename (str): The local path where the downloaded data (a .zip file)
+            will be saved.
+        month (int): The month for which to request data.
+        year (int | None, optional): The year for which to request data. Not
+            required for var="test_for_normalty_spei", therefore defaults to None.
+        var (str, optional): The CDS API variable name to download. Defaults to
+            "standardised_precipitation_evapotranspiration_index".
+
+    Returns:
+        str: The type of dataset that was successfully downloaded
+            ("consolidated_dataset" or "intermediate_dataset").
+    """
+    # input checks
     assert var in ["standardised_precipitation_evapotranspiration_index", "test_for_normality_spei"]
+    if var == "standardised_precipitation_evapotranspiration_index":
+        assert year is not None
 
     load_dotenv()
     CDS_ECMWF_KEY = os.getenv("CDS_ECMWF_KEY")
@@ -112,14 +143,14 @@ def apirequest(outfilename: str, month: int, year:int|None = None, var:str="stan
         "accumulation_period": ["12"],
         "version": "1_0",
         "product_type": ["reanalysis"],
-        "month": [str(month).zfill(2)]
+        "month": [str(month).zfill(2)],
     }
     if year is not None:
         request["year"] = str(year)
-    #up to 2022 this
-    
+    # up to 2022 this
+
     try:
-        request["dataset_type"] = "consolidated_dataset"     
+        request["dataset_type"] = "consolidated_dataset"
         c.retrieve(dataset, request, outfilename)
     except HTTPError as e:
         print(e)
@@ -129,13 +160,34 @@ def apirequest(outfilename: str, month: int, year:int|None = None, var:str="stan
             c.retrieve(dataset, request, outfilename)
 
         except Exception as e:
-            print("failed to download the data, please check the CDS API key and the dataset availability.")
+            print(
+                "failed to download the data, please check the CDS API key and the dataset availability."
+            )
             raise e
     return request["dataset_type"]
 
 
-
 def process_nc(spei_filepath, significance_filepath):
+    """Processes raw monthly SPEI-12 and significance NetCDF files into a gridded DataFrame.
+
+    This function reads a raw SPEI NetCDF file and a corresponding significance
+    NetCDF file. It masks the SPEI data, keeping only values where the significance
+    test passed. It then spatially aggregates the higher-resolution data to a
+    standardized 0.5-degree grid by taking the mean of all source pixels within
+    each grid cell. The function also cleans the data by removing fill values and
+    standardizes column names.
+
+    Args:
+        spei_filepath (str): The file path to the raw SPEI NetCDF data for one
+            year and month.
+        significance_filepath (str): The file path to the corresponding significance
+            NetCDF data for that month.
+
+    Returns:
+        pd.DataFrame: A DataFrame containing the processed and gridded SPEI
+            data for the given month, with columns for latitude, longitude,
+            time, and the SPEI-12 value.
+    """
     # read nc files
     ds_spei = xr.open_dataset(spei_filepath, engine="h5netcdf")
     ds_significance = xr.open_dataset(significance_filepath, engine="h5netcdf")
@@ -145,7 +197,7 @@ def process_nc(spei_filepath, significance_filepath):
 
     # to pandas dataframe
     df = ds_spei.to_dataframe().reset_index()
-    # replace values smaller equal <-6 with np.nan 
+    # replace values smaller equal <-6 with np.nan
     # the FillValue is -9999 and there are some invalid values around -8
     # no valid values should ever reach -6
     df.loc[df["SPEI12"] <= -6, "SPEI12"] = pd.NA
@@ -169,7 +221,7 @@ def process_nc(spei_filepath, significance_filepath):
         columns={
             "latbin": "LATITUDE",
             "lonbin": "LONGITUDE",
-            "time": "EVENT_DATE",            
+            "time": "EVENT_DATE",
         },
         inplace=True,
     )
@@ -178,26 +230,36 @@ def process_nc(spei_filepath, significance_filepath):
 
 
 class CDSECMWFSPEIData(Dataset):
-    """Handles loading and processing of EWDS event data.
+    """Handles downloading, processing, and aggregation of CDS ECMWF SPEI drought data.
 
-    Supports loading from local preprocessed files or via API.
-    Includes methods for aggregating event data to the
-    grid-quarter level.
+    Implements `load_data()` as the main entry point, which orchestrates the
+    full download and processing pipeline via `download_data()` if a cached,
+    up-to-date file is not found.
+    Implements `download_data()` to fetch raw monthly SPEI and significance
+    NetCDF files from the CDS API and process them into a unified, gridded DataFrame.
+    Implements `create_grid_quarter_aggregates()` to temporally aggregate the
+    monthly data into quarterly mean values.
+    Implements `select_quarter_values()` as an alternative aggregation method that
+    selects the SPEI value from the last month of each quarter.
+
+    This class requires `CDS_ECMWF_KEY` to be set as an environment variable for
+    API authentication.
 
     Attributes:
         data_key (str): Set to "cds_ecmwf_spei".
-        local (bool): Set to False as data is downloaded via the ecmwf API.
-        dataset_available (bool): Flag set to True after data is
-            successfully loaded or checked by `load_data`.
+        local (bool): Set to False, as data is downloaded via the ECMWF API.
+        dataset_available (bool): Flag set to True after `load_data` confirms
+            that the processed data is available.
     """
 
-    data_key = "cdsecmwf_spei"
+    data_key = "cds_ecmwf_spei"
     local = False
 
     def __init__(self, config: ConfigParser, *args, **kwargs):
-        """Initializes the cds ecmwf spei data source.
+        """Initializes the CDS ECMWF SPEI data source.
 
-        Sets up the availability flag and calls the Dataset initializer.
+        Sets up the availability flag and calls the parent `Dataset` initializer
+        to set up configuration and storage.
 
         Args:
             config (ConfigParser): An initialized ConfigParser instance.
@@ -205,16 +267,18 @@ class CDSECMWFSPEIData(Dataset):
         self.dataset_available = False
         super().__init__(config=config, *args, **kwargs)
 
-    def download_data(self):
-        """Downloads ewds data from the API.
+    def download_data(self) -> None:
+        """Orchestrates the full download and initial processing workflow.
 
-        Downloads the ewds data from the API and saves it to the processing
-        storage. The filename is based on the current date and time.
-
-        Returns:
-            str: The filename of the downloaded ewds data.
+        This method manages the end-to-end process of generating the monthly
+        gridded SPEI-12 dataset. It iterates through a historical date range,
+        downloads the raw SPEI and significance data for each month from the CDS
+        API, processes the downloaded NetCDF files into a standardized 0.5-degree
+        grid format, and concatenates all monthly results. The final, comprehensive
+        DataFrame of gridded monthly SPEI values is then cached to the processing
+        directory. This method is typically called by `load_data()` when no
+        up-to-date cache is found.
         """
-
         # Generate dates from the start date to the last quarter
         start_date = pd.to_datetime("1990-01-01")
         today = pd.to_datetime("today")
@@ -223,32 +287,44 @@ class CDSECMWFSPEIData(Dataset):
         last_day_previous_quarter = previous_quarter.end_time
 
         date_range = pd.date_range(start=start_date, end=last_day_previous_quarter, freq="M")
-        
+
         def download_unzip(var: str):
             outfilenc = outfilename.replace(".zip", ".nc")
             if not os.path.exists(outfilenc):
-                dataset_type = apirequest(outfilename, year =year, month=month, var = var)
+                dataset_type = apirequest(outfilename, year=year, month=month, var=var)
                 # rename in case of intermediate so intermediates get retried each time
                 if dataset_type == "intermediate_dataset":
                     outfilenc = outfilenc.replace(".nc", "_intermediate.nc")
                 with zipfile.ZipFile(outfilename, "r") as zip_ref:
                     # sanity check of contents
                     if var == "test_for_normality_spei":
-                        file_selection = [f for f in zip_ref.filelist if "speisignificance" in f.filename]
+                        file_selection = [
+                            f for f in zip_ref.filelist if "speisignificance" in f.filename
+                        ]
                     else:
-                        file_selection = [f for f in zip_ref.filelist if "speisignificance" not in f.filename]
+                        file_selection = [
+                            f for f in zip_ref.filelist if "speisignificance" not in f.filename
+                        ]
                     assert len(file_selection) == 1
                     zip_ref.extractall(os.path.dirname(outfilename), file_selection)
-                os.rename(os.path.join(os.path.dirname(outfilename), file_selection[0].filename), outfilenc)
+                os.rename(
+                    os.path.join(os.path.dirname(outfilename), file_selection[0].filename),
+                    outfilenc,
+                )
                 os.remove(outfilename)
-        
+
         # significance files - one per month
         year = None
         for month in range(1, 13):
             self.console.print(
                 f"========================= downloading and unzipping significance {str(month).zfill(2)}=================================="
             )
-            outfilename = self.storage.build_filepath("processing", f"cdsecmwfspei12-significance-{str(month).zfill(2)}", "significance", ".zip")
+            outfilename = self.storage.build_filepath(
+                "processing",
+                f"cdsecmwfspei12-significance-{str(month).zfill(2)}",
+                "significance",
+                ".zip",
+            )
             download_unzip("test_for_normality_spei")
 
         for date in date_range:
@@ -257,7 +333,9 @@ class CDSECMWFSPEIData(Dataset):
             )
             year = date.year
             month = date.month
-            outfilename = self.storage.build_filepath("processing", f"cdsecmwfspei12-{year}-{str(month).zfill(2)}", "spei12", ".zip")
+            outfilename = self.storage.build_filepath(
+                "processing", f"cdsecmwfspei12-{year}-{str(month).zfill(2)}", "spei12", ".zip"
+            )
             download_unzip("standardised_precipitation_evapotranspiration_index")
 
         df_events = []
@@ -265,14 +343,20 @@ class CDSECMWFSPEIData(Dataset):
         for date in date_range:
             year = date.year
             month_str = str(date.month).zfill(2)
-            spei_filepath = self.storage.build_filepath("processing", f"cdsecmwfspei12-{year}-{month_str}", "spei12", ".nc")
-            # switch to intermediate if 
+            spei_filepath = self.storage.build_filepath(
+                "processing", f"cdsecmwfspei12-{year}-{month_str}", "spei12", ".nc"
+            )
+            # switch to intermediate if
             try:
                 assert os.path.exists(spei_filepath)
             except AssertionError:
-                spei_filepath = self.storage.build_filepath("processing", f"cdsecmwfspei12-{year}-{month_str}_intermediate", "spei12", ".nc")
+                spei_filepath = self.storage.build_filepath(
+                    "processing", f"cdsecmwfspei12-{year}-{month_str}_intermediate", "spei12", ".nc"
+                )
                 assert os.path.exists(spei_filepath)
-            significance_filepath = self.storage.build_filepath("processing", f"cdsecmwfspei12-significance-{month_str}", "significance", ".nc")
+            significance_filepath = self.storage.build_filepath(
+                "processing", f"cdsecmwfspei12-significance-{month_str}", "significance", ".nc"
+            )
             self.console.print(f"processing {spei_filepath}")
             dfs = process_nc(spei_filepath, significance_filepath)
             df_events.append(dfs)
@@ -291,17 +375,20 @@ class CDSECMWFSPEIData(Dataset):
         # self.storage.save(df_events[self.columns], "processing", filename=self.filename)
         # beacuse those are the events I keep all the columns
         self.storage.save(df_events, "processing", filename=self.filename)
+        return
 
-    def load_data(self):
-        """Loads ewds data, checking for cached processing files first.
+    def load_data(self) -> pd.DataFrame:
+        """Loads the processed monthly gridded SPEI-12 data.
 
-        Attempts to load a local ewds copy from the 'processing' storage
-        including the last completed quarter. If not found, or 
-        regenerate["data"] is set to True, downloads the data and 
-        converts to gridded dataframe. Saves the preprocessed data to the processing storage.
+        This is the primary public method for accessing SPEI data. It first
+        checks for a cached data file corresponding to the last completed quarter.
+        If this file is not found or if regeneration is forced via the global
+        config, it triggers the full download and processing pipeline by calling
+        `download_data()`.
 
         Returns:
-            pd.DataFrame: The loaded ewds event data.
+            pd.DataFrame: A DataFrame of monthly SPEI-12 values, spatially aggregated
+                to the grid, indexed with time and location information.
         """
         self.last_quarter_date = get_quarter("last", bounds="end")
         self.filename = (
@@ -326,24 +413,27 @@ class CDSECMWFSPEIData(Dataset):
         df_base: pd.DataFrame,
         df_event_level: pd.DataFrame,
     ) -> pd.DataFrame:
-        """Calculates grid-quarter aggregates from the event level ewds data.
+        """Aggregates the monthly gridded SPEI-12 data into quarterly averages.
 
-        Assigns events to grid cells (pgid), calculates quarterly aggregates
-        (event counts, fatalities) for armed violence and unrest, merges with the
-        base grid structure, and fills missing values based on ewds coverage
-        information.
+        This method takes the monthly SPEI-12 data and calculates the mean SPEI-12
+        value for each grid cell within each quarter. The results are then
+        merged onto the standard data structure. It also applies a spatial mask to
+        filter out barren and ice-covered grid cells.
 
         Args:
-            df_base (pd.DataFrame): Base data structure for indicator data.
-            df_event_level (pd.DataFrame): ewds event-level data from `self.load_data`.
+            df_base (pd.DataFrame): The base DataFrame structure, indexed by
+                ('pgid', 'year', 'quarter').
+            df_event_level (pd.DataFrame): The monthly gridded SPEI-12 data, as
+                returned by `self.load_data()`.
 
         Returns:
-            pd.DataFrame: Dataframe aligned to index grid with quarterly ewds aggregates.
+            pd.DataFrame: `df_base` with the quarterly mean SPEI-12 values per grid
+                cell added.
         """
         # don't automatically start ewds download since those are separate step in the
         # indicator logic that should each be performed deliberately
         assert self.dataset_available, (
-            "ewds download/data check has not run, check indicator logic"
+            "ecmwf spei download/data check has not run, check indicator logic"
         )
 
         # quarter as number 1,2,3,4
@@ -364,7 +454,7 @@ class CDSECMWFSPEIData(Dataset):
             how="left",
         )
 
-        df = df[["pgid", "year", "quarter", "lat", "lon",  "SPEI12"]]
+        df = df[["pgid", "year", "quarter", "lat", "lon", "SPEI12"]]
 
         df["time"] = df["year"].astype(str) + "Q" + df["quarter"].astype(str)
         df["time"] = pd.PeriodIndex(df["time"], freq="Q")
@@ -372,19 +462,67 @@ class CDSECMWFSPEIData(Dataset):
         df["time"] = df["time"].dt.to_timestamp()
 
         df.columns = [col.lower() for col in df.columns]
-        # df = df.fillna(0)
-        #mask with old spei mask
-        
-        storage =self.storage.storage_paths['processing'] 
+        # mask with old spei mask
+        storage = self.storage.storage_paths["processing"]
         df = mask_spei(df, ["spei12"], storage)
 
-        # df = df.fillna(0)
+        return df
+
+    def select_quarter_values(
+        self,
+        df_base: pd.DataFrame,
+        df_event_level: pd.DataFrame,
+    ) -> pd.DataFrame:
+        """Filters monthly gridded SPEI-12 data by selecting the end-of-quarter value.
+
+        As an alternative to averaging, this method only keeps the monthly SPEI-12
+        value for the last month of each quarter (March, June, September, December).
+        These end-of-quarter values are then merged onto the standard data structure
+        and masked to filter out barren and ice-covered grid cells.
+
+        Args:
+            df_base (pd.DataFrame): The base DataFrame structure, indexed by
+                ('pgid', 'year', 'quarter').
+            df_event_level (pd.DataFrame): The monthly gridded SPEI-12 data, as
+                returned by `self.load_data()`.
+
+        Returns:
+            pd.DataFrame: `df_base` with the end-of-quarter SPEI-12 values per grid
+                cell added.
+        """
+        assert self.dataset_available, (
+            "ecmwf spei download/data check has not run, check indicator logic"
+        )
+        # select only the values for the last month in each quarter
+        df_event_level_quarters = df_event_level.loc[
+            df_event_level["EVENT_DATE"].dt.month.isin([3, 6, 9, 12])
+        ]
+        # quarter as number 1,2,3,4
+        df_event_level_quarters["QUARTER"] = df_event_level_quarters["EVENT_DATE"].dt.quarter
+
+        df = df_base.reset_index().merge(
+            df_event_level_quarters[["LATITUDE", "LONGITUDE", "YEAR", "QUARTER", "SPEI12"]],
+            left_on=["year", "quarter", "lat", "lon"],
+            right_on=["YEAR", "QUARTER", "LATITUDE", "LONGITUDE"],
+            how="left",
+        )
+        df = df[["pgid", "year", "quarter", "lat", "lon", "SPEI12"]]
+
+        df["time"] = df["year"].astype(str) + "Q" + df["quarter"].astype(str)
+        df["time"] = pd.PeriodIndex(df["time"], freq="Q")
+        # convert to datetime
+        df["time"] = df["time"].dt.to_timestamp()
+
+        df.columns = [col.lower() for col in df.columns]
+        # mask with old spei mask
+        storage = self.storage.storage_paths["processing"]
+        df = mask_spei(df, ["spei12"], storage)
+
         return df
 
 
 # test class
 if __name__ == "__main__":
-
     config = ConfigParser()
 
     # Example usage
