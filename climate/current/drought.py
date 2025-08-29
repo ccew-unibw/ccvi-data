@@ -42,13 +42,13 @@ class CliCurrentDrought(Indicator, NormalizationMixin):
             print("-- df_base creation ...")
             df_base = self.create_base_df(start_year=df_event_data["EVENT_DATE"].dt.year.min())
             print("-- create_grid_quarter_aggregates ...")
-            df_preprocessed = self.event_data.create_grid_quarter_aggregates(df_base, df_event_data)
+            df_preprocessed = self.event_data.select_quarter_values(df_base, df_event_data)
             df_preprocessed.to_parquet(fp_preprocessed)
             return df_preprocessed
 
     def create_indicator(self, df_preprocessed: pd.DataFrame) -> pd.DataFrame:
         # Drought indicator
-        # mean SPEI-12 over the past twelve months, 
+        # SPEI-12 or the most recent month in the quarter 
         
         # the raw value should not be reversed and is thus negative
         # the indicator is based on values < 0, with higher values set to 0 for aggregation
