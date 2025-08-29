@@ -100,8 +100,6 @@ with console.status("Initializing CCVI components...", spinner="earth"):
     # Dim "context"
     con_context_actors = ConContextActors(config=config, grid=base_grid)
     con_context_country = ConContextCountry(config=config, grid=base_grid)
-    # all the ClimateDimension currently does is implement add_exposure 
-    # we use the same logic for this conflict dimension, so no need for a separate dimension and due to the dataset used cannot keep this in base
     con_context = ExposureDimension(
         base_grid,
         "CON",
@@ -110,6 +108,7 @@ with console.status("Initializing CCVI components...", spinner="earth"):
         indicators=[con_context_actors, con_context_country],
     )
     con_pillar = Pillar("CON", config=config, dimensions=[con_level, con_soctens, con_context])
+    
     ### VULNERABILITY ###
     # Dim "socioeconomic"
     vul_socioeconomic_agriculture = VulSocioeconomicAgriculture(config=config, grid=base_grid)
