@@ -55,19 +55,26 @@ class CliAccumulatedDrought(Indicator, NormalizationMixin):
         # the indicator score is reversed (so higher normalized values imply more severe drought)
 
         df_indicator = df_preprocessed[["pgid", "year", "quarter", "lat", "lon", "spei12"]]
-        df_indicator["spei12_n"] = df_indicator["spei12"].apply(lambda x: x * -1 if x < 0 or np.isnan(x) else 0)
-        
-        #the mean of negative SPEI-12 values over the past seven years
+        df_indicator["spei12_n"] = df_indicator["spei12"].apply(
+            lambda x: x * -1 if x < 0 or np.isnan(x) else 0
+        )
+
+        # the mean of negative SPEI-12 values over the past seven years
         df_indicator = df_indicator.set_index(["pgid", "year", "quarter"]).sort_index()
-        means = df_indicator.groupby(['pgid', 'quarter'])["spei12_n"].rolling(window=7).mean()
-        means = means.reset_index(level=[0,1], drop=True).sort_index()
-        df_indicator[f"{self.composite_id}_raw"] = means
+        means = df_indicator.groupby(["pgid", "quarter"])["spei12_n"].rolling(window=7).mean()
+        means = means.reset_index(level=[0, 1], drop=True).sort_index()
+        df_indicator[self.composite_id] = means
+        df_indicator[f"{self.composite_id}_raw"] = means * -1
         return df_indicator
 
     def normalize(self, df_indicator: pd.DataFrame) -> pd.DataFrame:
         """Standardized normalization via ClimateMixin"""
         df_normalized = self.climate_normalize(
-            df_indicator, self.composite_id, self.indicator_config, self.global_config["start_year"]
+            df_indicator,
+            self.composite_id,
+            self.indicator_config,
+            self.global_config["start_year"],
+            False,
         )
         return df_normalized
 
