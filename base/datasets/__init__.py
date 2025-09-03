@@ -24,7 +24,6 @@ from .ntl import NTLData
 from .sdg import SDGData
 from .shdi import SubnationalHDIData
 from .soil_erosion import SoilErosionData
-from .spei import SPEIData
 from .swiid import SWIIDData
 from .ucdp import UCDPData
 from .unhcr import UNHCRData
@@ -60,7 +59,6 @@ __all__ = [
     "SDGData",
     "SoilErosionData",
     "SubnationalHDIData",
-    "SPEIData",
     "SWIIDData",
     "UNHCRData",
     "UCDPData",

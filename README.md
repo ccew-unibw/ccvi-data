@@ -46,10 +46,6 @@ All data used in the CCVI is publically available. The project depends both on l
 
 The project was developed and tested on python3.12.
 
-**R**
-
-The project uses R for some of its calculations via the r2py bridge. For this to work, R needs to be installed on your enviroment. The project was tested on R 4.3.2.
-
 **Python Dependencies:**
 
 This project uses [`uv`](https://github.com/astral-sh/uv) for Python package, version and virtual environment management. uv needs to be installed before it can be used to setup the environment.
