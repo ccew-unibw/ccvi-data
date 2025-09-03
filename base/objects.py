@@ -1164,28 +1164,38 @@ class AggregateScore:
     def aggregate(
         self, df: pd.DataFrame, id: str, aggregation_config: dict[str, Any]
     ) -> pd.DataFrame:
-        """Aggregates indicator data into the dimension score based on config.
+        """Aggregates component scores into aggregate score based on a provided configuration.
 
-        Performs the aggregation based on the method, weights, and normalization
-        settings defined in `self.aggregation_config`. Handles potential
-        '_exposure' suffixes in column names if `self.has_exposure` is True.
-        Ignores NaNs during the core aggregation calculation.
+        This method applies a specified aggregation technique to a DataFrame of
+        component scores. It uses the method, weights, and normalization settings
+        defined in the `aggregation_config` dictionary. Handles potential
+        '_exposure' suffixes in column names. NAs are ignored for dimensions,
+        but not allowed for Pillars, Risk scores, or the CCVI score.
 
         Args:
-            df (pd.DataFrame): DataFrame containing the indicator data to be
-                aggregated either with or without exposure.
+            df (pd.DataFrame): DataFrame containing ONLY the component scores to 
+                be aggregated. Columns should correspond to component IDs 
+                ('_exposure' suffixes are also allowed).
+            id (str): The composite ID of the aggregate score.
+            aggregation_config (dict[str, Any]): A dictionary specifying the
+                aggregation parameters, containing 'method' (str),
+                'normalize' (bool), and 'weights' (a dictionary mapping
+                component IDs to weights, or the string "None").
 
         Returns:
             pd.DataFrame: A DataFrame with a single column containing the aggregate
                 scores.
-        """
+        """        
         # output dataframe
         df_aggregated = pd.DataFrame(index=df.index, columns=[id])
         # rename if columns are exposure versions to make the logic below consistent
         indicators = [c.removesuffix("_exposure") for c in df.columns]
         df.columns = indicators
-        # nans are ignored in dimension aggregation
-        ignore_nan = True
+        # NAs are ignored in dimension aggregation, but not allowed for higher-level aggregates
+        if len(id) > 4 and not id.endswith("_risk"):
+            ignore_nan = True
+        else:
+            ignore_nan = False
         # configs
         method = aggregation_config["method"]
         normalize = aggregation_config["normalize"]
@@ -1208,7 +1218,7 @@ class AggregateScore:
         self,
         df: pd.DataFrame,
         method: Literal["mean", "pmean", "gmean"],
-        ignore_nan: bool = False,
+        ignore_nan: bool,
         weights: list[float] | None = None,
     ) -> list | np.ndarray:
         """Calculates an aggregate score from component data.
