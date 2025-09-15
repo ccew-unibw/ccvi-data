@@ -676,6 +676,7 @@ class GlobalBaseGrid:
         if os.path.exists(fp_basemap) and not self.regenerate:
             cgaz = gpd.read_parquet(fp_basemap)
         else:
+            self.console.print("Creating country basemap...")
             cgaz = gpd.read_file(self.config["countries"])
             cgaz["geometry"] = cgaz["geometry"].make_valid()
             # merge palestine and gaza as this is often not treated separately
