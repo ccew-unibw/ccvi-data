@@ -237,14 +237,12 @@ dependencies = [
     { name = "panel-imputer" },
     { name = "pendulum" },
     { name = "pyarrow" },
-    { name = "pyeto" },
     { name = "pyproj" },
     { name = "pyreadr" },
     { name = "python-dotenv" },
     { name = "pyyaml" },
     { name = "rich" },
     { name = "rioxarray" },
-    { name = "rpy2" },
     { name = "schedule" },
     { name = "scikit-learn" },
     { name = "scipy" },
@@ -277,17 +275,15 @@ requires-dist = [
     { name = "numpy", specifier = ">=2.2.4" },
     { name = "openpyxl", specifier = ">=3.1.5" },
     { name = "pandas", specifier = ">=2.2.3" },
-    { name = "panel-imputer", specifier = ">=0.7.0" },
+    { name = "panel-imputer", specifier = "==0.7.1" },
     { name = "pendulum", specifier = ">=3.0.0" },
     { name = "pyarrow", specifier = ">=19.0.1" },
-    { name = "pyeto", git = "https://github.com/woodcrafty/PyETo.git" },
     { name = "pyproj", specifier = ">=3.7.1" },
     { name = "pyreadr", specifier = ">=0.5.3" },
     { name = "python-dotenv", specifier = ">=1.1.0" },
     { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "rich", specifier = ">=14.0.0" },
     { name = "rioxarray", specifier = ">=0.19.0" },
-    { name = "rpy2", specifier = "==3.5.9" },
     { name = "schedule", specifier = ">=1.2.2" },
     { name = "scikit-learn", specifier = ">=1.6.1" },
     { name = "scipy", specifier = ">=1.15.2" },
@@ -1850,7 +1846,7 @@ wheels = [
 
 [[package]]
 name = "panel-imputer"
-version = "0.7.0"
+version = "0.7.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "joblib" },
@@ -1859,9 +1855,9 @@ dependencies = [
     { name = "scikit-learn" },
     { name = "tqdm" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/16/40/082ed47ccd37eeb8fd11c18a93e9afd6e3560cde3bff0cbe31e5159b8900/panel_imputer-0.7.0.tar.gz", hash = "sha256:c26c3237faacc96f931c9329b169d8229100cf13e12bf307f352cc9c711b3c45", size = 7027, upload-time = "2025-05-23T14:51:22.635Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/27/47/9e0c40ccf489296369cee0712c68a4dc1a1daf2830dbe38e4662071b057f/panel_imputer-0.7.1.tar.gz", hash = "sha256:30abc0e64e3b943ba9922889304a87feb3c641dc6cf826dea3a1ff51a5d1ad02", size = 7884, upload-time = "2025-08-04T17:03:15.615Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/be/47/992c87a6c76be3a3597fd9eef69c529b75ea7bab6bd17894ecf2f02275d9/panel_imputer-0.7.0-py3-none-any.whl", hash = "sha256:e31069506d359ed1b3c54e0ec02e0e6d4169cea269d79e5f616ec46693e12aa4", size = 7784, upload-time = "2025-05-23T14:51:21.403Z" },
+    { url = "https://files.pythonhosted.org/packages/72/d6/0f8c5a72cbe5a8315572ed24fb761efaec630a80184b65917f890c9c05eb/panel_imputer-0.7.1-py3-none-any.whl", hash = "sha256:af2077a77983129158f2b933d051575c6934bcc4b32c97402d29fa2b70ae4cdc", size = 8630, upload-time = "2025-08-04T17:03:14.445Z" },
 ]
 
 [[package]]
@@ -2117,11 +2113,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/1d/b2/31537cf4b1ca98883
 wheels = [
     { url = "https://files.pythonhosted.org/packages/13/a3/a812df4e2dd5696d1f351d58b8fe16a405b234ad2886a0dab9183fb78109/pycparser-2.22-py3-none-any.whl", hash = "sha256:c3702b6d3dd8c7abc1afa565d7e63d53a1d0bd86cdc24edd75470f4de499cfcc", size = 117552, upload-time = "2024-03-30T13:22:20.476Z" },
 ]
-
-[[package]]
-name = "pyeto"
-version = "0.2.0"
-source = { git = "https://github.com/woodcrafty/PyETo.git#79ddd88d727c7ebdad0ce26e220528d2921b66ea" }
 
 [[package]]
 name = "pygments"
@@ -2521,19 +2512,6 @@ wheels = [
 ]
 
 [[package]]
-name = "rpy2"
-version = "3.5.9"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "cffi" },
-    { name = "jinja2" },
-    { name = "packaging", marker = "sys_platform == 'win32'" },
-    { name = "pytz" },
-    { name = "tzlocal" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/f9/d4/f817a523c4168c826a816f89a5a080fa2fd7ad939dbfece5eb5d01235070/rpy2-3.5.9.tar.gz", hash = "sha256:89a0d7e340657795558e0db6bf9d8f1395428ba118af9023515dda928e6944f0", size = 215141, upload-time = "2023-02-24T20:29:08.033Z" }
-
-[[package]]
 name = "rsa"
 version = "4.9.1"
 source = { registry = "https://pypi.org/simple" }
@@ -2928,18 +2906,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/95/32/1a225d6164441be760d75c2c42e2780dc0873fe382da3e98a2e1e48361e5/tzdata-2025.2.tar.gz", hash = "sha256:b60a638fcc0daffadf82fe0f57e53d06bdec2f36c4df66280ae79bce6bd6f2b9", size = 196380, upload-time = "2025-03-23T13:54:43.652Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/5c/23/c7abc0ca0a1526a0774eca151daeb8de62ec457e77262b66b359c3c7679e/tzdata-2025.2-py2.py3-none-any.whl", hash = "sha256:1a403fada01ff9221ca8044d701868fa132215d84beb92242d9acd2147f667a8", size = 347839, upload-time = "2025-03-23T13:54:41.845Z" },
-]
-
-[[package]]
-name = "tzlocal"
-version = "5.3.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "tzdata", marker = "sys_platform == 'win32'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/8b/2e/c14812d3d4d9cd1773c6be938f89e5735a1f11a9f184ac3639b93cef35d5/tzlocal-5.3.1.tar.gz", hash = "sha256:cceffc7edecefea1f595541dbd6e990cb1ea3d19bf01b2809f362a03dd7921fd", size = 30761, upload-time = "2025-03-05T21:17:41.549Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c2/14/e2a54fabd4f08cd7af1c07030603c3356b74da07f7cc056e600436edfa17/tzlocal-5.3.1-py3-none-any.whl", hash = "sha256:eb1a66c3ef5847adf7a834f1be0800581b683b5608e74f86ecbcef8ab91bb85d", size = 18026, upload-time = "2025-03-05T21:17:39.857Z" },
 ]
 
 [[package]]

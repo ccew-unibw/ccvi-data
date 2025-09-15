@@ -55,7 +55,8 @@ class VDemData(Dataset):
         Returns:
             pd.DataFrame: The preprocessed V-Dem data, indexed by ('iso3', 'year').
         """
-        # 2 different Palestine areas in vdem with same iso code processed, but gaza does not appear in the grid (too small)
+        # 2 different Palestine areas in vdem with same iso code processed
+        # since they do not appear in the grid due to the majority rule we can simply drop it
         df_vdem = df_vdem[~df_vdem["country_text_id"].isin(["Palestine/Gaza"])]
         df_vdem = df_vdem[df_vdem.year >= self.global_config["start_year"]].copy()
         # prep for merging to grid
@@ -65,4 +66,9 @@ class VDemData(Dataset):
             .set_index(["iso3", "year"])
             .sort_index()
         )
+        # add a copy of Marocco as Western Sahara since V-Dem does not code this separately
+        esh_chunk = df_vdem.xs("MAR", level="iso3", drop_level=False).reset_index()
+        esh_chunk["iso3"] = "ESH"
+        esh_chunk = esh_chunk.set_index(["iso3", "year"])
+        df_vdem = pd.concat([df_vdem, esh_chunk]).sort_index()
         return df_vdem

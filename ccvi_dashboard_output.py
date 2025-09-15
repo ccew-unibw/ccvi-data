@@ -74,9 +74,11 @@ def get_vul_country_data():
     df_ilo = ilo.preproces_data_agrdep(ilo.load_data(ilo_indicators))
     df_agr = pd.concat([df_ilo, df_wb["agr_value_added"]], axis=1).sort_index()
     df_agr = ccvi.vul_socioeconomic_agriculture.clip_fill_data(df_agr)
-    df_agr["labor_force_agriculture"] = (df_agr['labor_force_participation']/100) * df_agr['agr_sector_share']
+    df_agr["labor_force_agriculture"] = (df_agr["labor_force_participation"] / 100) * df_agr[
+        "agr_sector_share"
+    ]
     df_wb = df_wb.drop(columns=["agr_value_added"])
-    
+
     df_swiid = swiid.preprocess_data(swiid.load_data())
     df_sdg = sdg.preprocess_data(sdg.load_data(["SN_ITK_DEFC"]))
     df_hdi = hdi.preprocess_data(hdi.load_data(["gii", "eys", "mys", "le"]))
@@ -144,7 +146,10 @@ class DimToolOutputWrapper:
         df = self.dimension.load_components(load_additional_values=True)
         # fill missing data with the last available observation
         imputer = PanelImputer(
-            time_index=["year", "quarter"], location_index="pgid", imputation_method="ffill"
+            time_index=["year", "quarter"],
+            location_index="pgid",
+            imputation_method="ffill",
+            parallelize=True,
         )
         df: pd.DataFrame = imputer.fit_transform(df)  # type: ignore
         if self.dimension.has_exposure:
@@ -246,14 +251,19 @@ class CCVIWrapper:
                 s3_client.upload_file(Filename=fp, Bucket=bucket_name, Key=key)
         return
 
-    def run(self):
+    def run(self, skip_vul_raw: bool = False):
         """Loads all scores and data recency and stores in tool output format.
 
         Loads all preprocessed components from "tool" output subfolder, loads
         risk scores, combines both. Also loads data recency and grid and stores
         everything
+        
+        Args:
+            skip_vul_raw (bool, optional): Flag to indicate whether to skip
+                (down)loading the country-level raw vulnerability data if a
+                version already exists for this quarter. Defaults to False.
         """
-        self.console.print(f"Processing full data for dashboard output...")
+        self.console.print("Processing full data for dashboard output...")
         self.console.print("Load components...")
         dfs = [p.run() for p in [self.cli, self.con, self.vul]]
         df = pd.concat(dfs, axis=1)
@@ -270,15 +280,17 @@ class CCVIWrapper:
         df = pd.concat([df_aggregated, df], axis=1)
         # loading exposure is easiest via one of the climate dims
         df_exp = ccvi.cli_current._create_exposure_layers()
-        # get vulnerability country data - separate loading function
-        df_vul_country = get_vul_country_data()
         # store
         subfolder = os.path.join("tool", self.ccvi.quarter_id)
         self.ccvi.storage.save(df, filename="ccvi_scores", subfolder=subfolder)
         self.ccvi.storage.save(data_recency, filename="data_recency", subfolder=subfolder)
         self.ccvi.storage.save(ccvi.base_grid.load(), filename="base_grid", subfolder=subfolder)
         self.ccvi.storage.save(df_exp, filename="exposure_layers", subfolder=subfolder)
-        self.ccvi.storage.save(df_vul_country, filename="vul_country_raw", subfolder=subfolder)
+        # vulnerability country data - separate loading function
+        # optionally skip if flag is set and file exists
+        if not (skip_vul_raw and os.path.exists(self.ccvi.storage.build_filepath("output", "vul_country_raw", subfolder))):
+            df_vul_country = get_vul_country_data()
+            self.ccvi.storage.save(df_vul_country, filename="vul_country_raw", subfolder=subfolder)
         # send to S3
         filepath = self.ccvi.storage.build_filepath("output", "", subfolder, "")
         self.copy_to_s3(filepath)
@@ -290,13 +302,14 @@ class CCVIWrapper:
 
 # CONFLICT #
 con_level = DimToolOutputWrapper(ccvi.con_level)
-con_persistence = DimToolOutputWrapper(ccvi.con_persistence)
 con_soctens = DimToolOutputWrapper(ccvi.con_soctens)
+con_context = DimToolOutputWrapper(ccvi.con_context)
 
 # VULNERABILITY #
 vul_socioeconomic = DimToolOutputWrapper(ccvi.vul_socioeconomic)
 vul_political = DimToolOutputWrapper(ccvi.vul_political)
 vul_demographic = DimToolOutputWrapper(ccvi.vul_demographic)
+vul_environmental = DimToolOutputWrapper(ccvi.vul_environmental)
 
 # CLIMATE #
 cli_current = DimToolOutputWrapper(ccvi.cli_current)
@@ -312,9 +325,10 @@ if __name__ == "__main__":
     cli_accumulated.run()
     cli_longterm.run()
     con_level.run()
-    con_persistence.run()
+    con_context.run()
     con_soctens.run()
     vul_socioeconomic.run()
     vul_political.run()
     vul_demographic.run()
-    ccvi_tool.run()
+    vul_environmental.run()
+    ccvi_tool.run(True)

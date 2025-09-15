@@ -18,7 +18,7 @@ import yaml
 from utils.data_processing import (
     add_time,
     min_max_scaling,
-    create_data_structure_yearly,
+    create_custom_data_structure,
 )
 from utils.index import get_quarter
 from utils.spatial_operations import coords_to_pgid, s_ceil, s_floor
@@ -180,7 +180,7 @@ class ConfigParser:
         """Modifies the global config in memory to mark a component as regenerated.
 
         This method removes the specified `id` from the regeneration lists
-        stored in `self.all_config['global']['regenerate']`. This prevents
+        stored in `self.all_config['global']['regenerate']` if found. This prevents
         subsequent calls to `get_regeneration_config` for the same `id` (and `key`)
         from returning True, effectively ensuring that a component is not
         unnecessarily regenerated multiple times within the same session if it was
@@ -997,7 +997,7 @@ class Indicator(ABC):
         last_quarter = get_quarter("last")
 
         df_grid = self.grid.load()
-        df = create_data_structure_yearly(df_grid, year_min, last_quarter.year)
+        df = create_custom_data_structure(df_grid, year_min, last_quarter.year)
         # creating a datetime column for easier time cropping and time-based operations
         df = add_time(df)
         df = df.loc[df.time <= last_quarter]
@@ -1164,28 +1164,38 @@ class AggregateScore:
     def aggregate(
         self, df: pd.DataFrame, id: str, aggregation_config: dict[str, Any]
     ) -> pd.DataFrame:
-        """Aggregates indicator data into the dimension score based on config.
+        """Aggregates component scores into aggregate score based on a provided configuration.
 
-        Performs the aggregation based on the method, weights, and normalization
-        settings defined in `self.aggregation_config`. Handles potential
-        '_exposure' suffixes in column names if `self.has_exposure` is True.
-        Ignores NaNs during the core aggregation calculation.
+        This method applies a specified aggregation technique to a DataFrame of
+        component scores. It uses the method, weights, and normalization settings
+        defined in the `aggregation_config` dictionary. Handles potential
+        '_exposure' suffixes in column names. NAs are ignored for dimensions,
+        but not allowed for Pillars, Risk scores, or the CCVI score.
 
         Args:
-            df (pd.DataFrame): DataFrame containing the indicator data to be
-                aggregated either with or without exposure.
+            df (pd.DataFrame): DataFrame containing ONLY the component scores to 
+                be aggregated. Columns should correspond to component IDs 
+                ('_exposure' suffixes are also allowed).
+            id (str): The composite ID of the aggregate score.
+            aggregation_config (dict[str, Any]): A dictionary specifying the
+                aggregation parameters, containing 'method' (str),
+                'normalize' (bool), and 'weights' (a dictionary mapping
+                component IDs to weights, or the string "None").
 
         Returns:
             pd.DataFrame: A DataFrame with a single column containing the aggregate
                 scores.
-        """
+        """        
         # output dataframe
         df_aggregated = pd.DataFrame(index=df.index, columns=[id])
         # rename if columns are exposure versions to make the logic below consistent
         indicators = [c.removesuffix("_exposure") for c in df.columns]
         df.columns = indicators
-        # nans are ignored in dimension aggregation
-        ignore_nan = True
+        # NAs are ignored in dimension aggregation, but not allowed for higher-level aggregates
+        if len(id) > 4 and not id.endswith("_risk"):
+            ignore_nan = True
+        else:
+            ignore_nan = False
         # configs
         method = aggregation_config["method"]
         normalize = aggregation_config["normalize"]
@@ -1207,8 +1217,8 @@ class AggregateScore:
     def _calculate_aggregate_score(
         self,
         df: pd.DataFrame,
-        method: Literal["mean", "pmean", "gmean", "conflict_pillar"],
-        ignore_nan: bool = False,
+        method: Literal["mean", "pmean", "gmean"],
+        ignore_nan: bool,
         weights: list[float] | None = None,
     ) -> list | np.ndarray:
         """Calculates an aggregate score from component data.
@@ -1217,8 +1227,6 @@ class AggregateScore:
         - "mean": Arithmetic mean
         - "gmean": Geometric mean
         - "pmean": Quadratic mean
-        - "conflict_pillar": A custom aggregation specific to the conflict pillar
-
         It applies the chosen method row-wise to the input DataFrame.
 
         Args:
@@ -1235,26 +1243,6 @@ class AggregateScore:
             list[float] | np.ndarray: A list or array containing the aggregate score
                 for each row.
         """
-
-        def calculate_score_conflict(df: pd.DataFrame, ignore_nan: bool) -> list[float]:
-            """Custom aggregation function for the conflict Pillar."""
-            # bit scuffed due to the non-consistent logic
-            if ignore_nan:
-                nan_policy = "omit"
-            else:
-                nan_policy = "propagate"
-            df = df.copy()
-            df["CON_conflict"] = pmean(
-                df[["CON_level", "CON_persistence"]],
-                2,
-                axis=1,
-                nan_policy=nan_policy,  # type: ignore
-            )  # type: ignore
-            return (
-                df[["CON_conflict", "CON_conflict", "CON_soctens"]]
-                .mean(axis=1, skipna=ignore_nan)
-                .to_list()
-            )
 
         if weights is not None:
             assert len(weights) == df.shape[1]
@@ -1459,7 +1447,10 @@ class Dimension(AggregateScore):
             df = self.load_components()
             # fill missing data with the last available observation
             imputer = PanelImputer(
-                time_index=["year", "quarter"], location_index="pgid", imputation_method="ffill"
+                time_index=["year", "quarter"],
+                location_index="pgid",
+                imputation_method="ffill",
+                parallelize=True,
             )
             df: pd.DataFrame = imputer.fit_transform(df)  # type: ignore
             if self.has_exposure:
@@ -1641,7 +1632,8 @@ class Dataset(ABC):
         local (bool): Flag indicating if the data source is expected to be loaded
             from the local input folder. Defaults to True.
         needs_storage (bool): Flag indicating whether the dataset needs processing
-            storage. If False, no processing folder will be created.
+            storage. If False, no processing folder will be created. Defaults to
+            True.
         config (ConfigParser): The ConfigParser instance used for initialization.
         global_config (dict[str, Any]): Dictionary containing global settings.
         storage (StorageManager): Storage manager instance configured with

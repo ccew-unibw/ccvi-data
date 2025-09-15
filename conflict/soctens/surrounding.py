@@ -30,8 +30,9 @@ class ConSoctensSurrounding(Indicator, NormalizationMixin):
 
     def preprocess_data(self, input_data: tuple[pd.DataFrame, pd.DataFrame]) -> pd.DataFrame:
         df_acled, df_vdem = input_data
+        # produce some additional history for normalization
+        df_base = self.create_base_df(self.global_config["start_year"] - 3)
         # acled preprocessing creates the data structure
-        df_base = self.create_base_df()
         acled_preprocessed = self.acled.create_grid_quarter_aggregates(df_base, df_acled)
         df_vdem = self.vdem.preprocess_data(df_vdem)
         # match with grid
@@ -41,6 +42,7 @@ class ConSoctensSurrounding(Indicator, NormalizationMixin):
             time_index=["year", "quarter"],
             location_index="pgid",
             imputation_method="ffill",
+            parallelize=True,
         )
         df_preprocessed["v2x_libdem"] = imputer.fit_transform(df_preprocessed[["v2x_libdem"]])
         return df_preprocessed
@@ -66,8 +68,9 @@ class ConSoctensSurrounding(Indicator, NormalizationMixin):
     def normalize(self, df_indicator: pd.DataFrame) -> pd.DataFrame:
         """Standardized normalization via ConflictMixin"""
         quantile = self.indicator_config["normalization_quantile"]
-        return self.conflict_normalize(df_indicator, self.composite_id, quantile)
-
+        start_year = self.global_config["start_year"]
+        return self.conflict_normalize(df_indicator, self.composite_id, quantile, start_year)
+    
 
 # this is possible by adding the root folder as the PYTHONPATH var in .env
 if __name__ == "__main__":

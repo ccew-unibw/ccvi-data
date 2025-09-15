@@ -1,19 +1,19 @@
 import pandas as pd
 
 from base.objects import Indicator, ConfigParser, GlobalBaseGrid
-from conflict.level.intensity import ConLevelIntensity
+from conflict.level import ConLevelIntensity
 from conflict.shared import NormalizationMixin, PersistenceMixin
 
 
-class ConPersistenceIntensity(Indicator, NormalizationMixin, PersistenceMixin):
+class ConLevelPersistence(Indicator, NormalizationMixin, PersistenceMixin):
     def __init__(
         self,
         config: ConfigParser,
         grid: GlobalBaseGrid,
         base_indicator: ConLevelIntensity,
         pillar: str = "CON",
-        dim: str = "persistence",
-        id: str = "intensity",
+        dim: str = "level",
+        id: str = "persistence",
     ):
         """Params defining indicator's place in index set to designed hierarchy by default"""
         self.base_indicator = base_indicator
@@ -26,7 +26,7 @@ class ConPersistenceIntensity(Indicator, NormalizationMixin, PersistenceMixin):
         return df_base
 
     def preprocess_data(self, df: pd.DataFrame) -> pd.DataFrame:
-        """No preprocessing necessary, keeping for consistency."""
+        """No preprocessing necessary."""
         return df
 
     def create_indicator(self, df_preprocessed: pd.DataFrame) -> pd.DataFrame:
@@ -50,5 +50,5 @@ if __name__ == "__main__":
     config = ConfigParser()
     grid = GlobalBaseGrid(config)
     base_indicator = ConLevelIntensity(config=config, grid=grid)
-    indicator = ConPersistenceIntensity(config=config, grid=grid, base_indicator=base_indicator)
+    indicator = ConLevelPersistence(config=config, grid=grid, base_indicator=base_indicator)
     indicator.run()
