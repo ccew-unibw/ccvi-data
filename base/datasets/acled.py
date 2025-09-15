@@ -1,9 +1,14 @@
 from datetime import date
 import math
+import os
+from tempfile import NamedTemporaryFile
 
+import boto3
+from dotenv import load_dotenv
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+from sqlalchemy import create_engine
 from tqdm import tqdm
 
 from base.objects import ConfigParser, Dataset, GlobalBaseGrid
@@ -15,7 +20,7 @@ class ACLEDData(Dataset):
     """Handles loading and processing of ACLED conflict event data.
 
     Implements `load_data()` to ingest an ACLED dataset dump or download the data
-    via API (not yet implemented), storing a copy with the relevant columns in the
+    from an external database, storing a copy with the relevant columns in the
     processing folder.
     Implements `preprocess_data()` to match events with grid cells and quarters
     and assign broader violence types.
@@ -47,7 +52,7 @@ class ACLEDData(Dataset):
             config (ConfigParser): An initialized ConfigParser instance.
             grid (GlobalBaseGrid): An initialized GlobalBaseGrid instance.
             local (bool, optional): Indicates whether to use local ACLED
-                dumps (True) or download data via the ACLED API (False).
+                dumps (True) or download data from an external database (False).
         """
         self.grid = grid
         self.local = local
@@ -63,8 +68,9 @@ class ACLEDData(Dataset):
         - If `self.local` is True, loads the raw dump specified in the config.
           Raises an error if the provided ACLED dump does not fully cover the
           latest quarter.
-        - If `self.local` is False, currently raises NotImplementedError (API access TBD).
-        Since ACLED retroactivly updated data in their database, saves the loaded
+        - If `self.local` is False, reads from a SQLite database copy of ACLED
+          stored in a S3 bucket.
+        Since ACLED retroactivly updates data in their database, saves the loaded
         raw/dump data for to the processing storage to keep a record for each quarter.
 
         Returns:
@@ -78,17 +84,30 @@ class ACLEDData(Dataset):
         except FileNotFoundError:
             if self.local:
                 df_acled = pd.read_parquet(self.data_config[self.data_key])
-                if df_acled["EVENT_DATE"].max() < last_quarter_date:
-                    raise Exception(
-                        "preprocessed ACLED data out of date, please provide a version up to "
-                        f"{last_quarter_date}."
-                    )
             else:
-                raise NotImplementedError("ACLED download not yet implemented")
-                # TODO: implement the download, which also stores the file
-                # TODO: @implement ACLED API query via AA acled key
+                load_dotenv()
+                bucket_name: str = os.getenv("S3_BUCKET_NAME")  # type: ignore
+                filename_s3: str = os.getenv("S3_ACLED_DB")  # type: ignore
+                s3_client = boto3.client(
+                    "s3",
+                    aws_access_key_id=os.getenv("S3_ACCESS_ID"),
+                    aws_secret_access_key=os.getenv("S3_ACCESS_KEY"),
+                    endpoint_url=os.getenv("S3_ENDPOINT"),
+                )                
+                with NamedTemporaryFile("wb", suffix=".db", delete_on_close=False) as f:
+                    s3_client.download_fileobj(bucket_name, filename_s3, f)
+                    f.flush()
+                    engine = create_engine(f"sqlite:///{f.name}")
+                    # table name is "ACLED" here - functions as read table
+                    df_acled = pd.read_sql("ACLED", engine, index_col="index", columns=columns)
+            # ensure date format consistency
+            df_acled["EVENT_DATE"] = pd.to_datetime(df_acled["EVENT_DATE"]).dt.date
+            if df_acled["EVENT_DATE"].max() < last_quarter_date:
+                raise Exception(
+                    "Loaded ACLED data does not fully cover last quarter, please provide a version "
+                    f"up to {last_quarter_date}."
+                )
             self.storage.save(df_acled[columns], "processing", filename=filename)
-
         # Set an instance attribute for easy checking
         self.acled_available = True
         return df_acled
