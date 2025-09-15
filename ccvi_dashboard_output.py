@@ -251,12 +251,17 @@ class CCVIWrapper:
                 s3_client.upload_file(Filename=fp, Bucket=bucket_name, Key=key)
         return
 
-    def run(self):
+    def run(self, skip_vul_raw: bool = False):
         """Loads all scores and data recency and stores in tool output format.
 
         Loads all preprocessed components from "tool" output subfolder, loads
         risk scores, combines both. Also loads data recency and grid and stores
         everything
+        
+        Args:
+            skip_vul_raw (bool, optional): Flag to indicate whether to skip
+                (down)loading the country-level raw vulnerability data if a
+                version already exists for this quarter. Defaults to False.
         """
         self.console.print("Processing full data for dashboard output...")
         self.console.print("Load components...")
@@ -275,15 +280,17 @@ class CCVIWrapper:
         df = pd.concat([df_aggregated, df], axis=1)
         # loading exposure is easiest via one of the climate dims
         df_exp = ccvi.cli_current._create_exposure_layers()
-        # get vulnerability country data - separate loading function
-        df_vul_country = get_vul_country_data()
         # store
         subfolder = os.path.join("tool", self.ccvi.quarter_id)
         self.ccvi.storage.save(df, filename="ccvi_scores", subfolder=subfolder)
         self.ccvi.storage.save(data_recency, filename="data_recency", subfolder=subfolder)
         self.ccvi.storage.save(ccvi.base_grid.load(), filename="base_grid", subfolder=subfolder)
         self.ccvi.storage.save(df_exp, filename="exposure_layers", subfolder=subfolder)
-        self.ccvi.storage.save(df_vul_country, filename="vul_country_raw", subfolder=subfolder)
+        # vulnerability country data - separate loading function
+        # optionally skip if flag is set and file exists
+        if not (skip_vul_raw and os.path.exists(self.ccvi.storage.build_filepath("output", "vul_country_raw", subfolder))):
+            df_vul_country = get_vul_country_data()
+            self.ccvi.storage.save(df_vul_country, filename="vul_country_raw", subfolder=subfolder)
         # send to S3
         filepath = self.ccvi.storage.build_filepath("output", "", subfolder, "")
         self.copy_to_s3(filepath)
@@ -324,4 +331,4 @@ if __name__ == "__main__":
     vul_political.run()
     vul_demographic.run()
     vul_environmental.run()
-    ccvi_tool.run()
+    ccvi_tool.run(True)
