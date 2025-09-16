@@ -42,7 +42,7 @@ class ACLEDData(Dataset):
 
     data_key = "acled"
 
-    def __init__(self, config: ConfigParser, grid: GlobalBaseGrid, local: bool = True):
+    def __init__(self, config: ConfigParser, grid: GlobalBaseGrid, local: bool = False):
         """Initializes the ACLED data source.
 
         Sets the operation mode (local file vs API), defines required data
@@ -53,6 +53,7 @@ class ACLEDData(Dataset):
             grid (GlobalBaseGrid): An initialized GlobalBaseGrid instance.
             local (bool, optional): Indicates whether to use local ACLED
                 dumps (True) or download data from an external database (False).
+                Defaults to False.
         """
         self.grid = grid
         self.local = local
