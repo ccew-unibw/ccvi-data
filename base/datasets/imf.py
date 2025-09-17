@@ -1,13 +1,11 @@
-import json
-import requests
-
 import pandas as pd
+import sdmx
 
-from base.objects import Dataset
+from base.objects import ConfigParser, Dataset
 from utils.data_processing import make_iso3_column
 
 
-class IMFData(Dataset):
+class IMFGDPData(Dataset):
     """Handles downloading and preprocessing of International Monetary Fund (IMF) data.
 
     Implements `load_data()` to download specified yearly economic indicators
@@ -26,7 +24,11 @@ class IMFData(Dataset):
     local: bool = False
     needs_storage: bool = False
 
-    def load_data(self, indicators: dict[str, str]) -> pd.DataFrame:
+    def __init__(self, config: ConfigParser):
+        super().__init__(config)
+        self.client = sdmx.Client("IMF_DATA")
+
+    def load_data(self) -> pd.DataFrame:
         """Downloads yearly data for multiple indicators from the IMF DataMapper API.
 
         For each indicator code provided, it constructs the API URL, fetches the
@@ -43,21 +45,18 @@ class IMFData(Dataset):
             pd.DataFrame: A DataFrame indexed by ('year', 'iso3') containing
                 all specified indicators.
         """
-        s_list = []
-        # get IMF data from API
-        for i in indicators:
-            url = f"https://www.imf.org/external/datamapper/api/v1/{i}"
-            response = requests.get(url)
-            data = json.loads(response.text)["values"][i]
-
-            series = pd.DataFrame(data).stack()
-            series.name = indicators[i]
-            series.index.names = ["year", "iso3"]
-            s_list.append(series.sort_index())
-        df_imf = pd.concat(s_list, axis=1)
+        # resource_id: Data provider, Dataset
+        # key: All countries (wildcard), GDP PPP, Annual
+        data = self.client.get(
+            "data",
+            resource_id="IMF.RES,WEO",
+            key=".PPPGDP.A",
+            params={"startPeriod": self.global_config["start_year"]},
+        )
+        df_imf = sdmx.to_pandas(data)
         return df_imf
 
-    def preprocess_data(self, df_imf: pd.DataFrame, scaling_factor: int) -> pd.DataFrame:
+    def preprocess_data(self, df_imf: pd.DataFrame) -> pd.DataFrame:
         """Preprocesses the downloaded IMF data.
 
         This method filters the data to only countries using IMF's country API,
@@ -66,25 +65,28 @@ class IMFData(Dataset):
 
         Args:
             df_imf (pd.DataFrame): The DataFrame from `load_data()`.
-            scaling_factor (int): Factor by which to multiply the numerical
-                indicator values.
 
         Returns:
             pd.DataFrame: Preprocessed IMF data indexed by ('iso3', 'year').
         """
-        # get country list to filter region and for easy iso3 conversion
-        url = "https://www.imf.org/external/datamapper/api/v1/countries"
-        response = requests.get(url)
-        response.raise_for_status()
-        country_df = pd.DataFrame(json.loads(response.text)["countries"]).T
+        df = df_imf.reset_index()
+        # read country list from api - agency_id is needed to overwrite the default "all"
+        data = self.client.get("codelist", resource_id="CL_ITS_COUNTRY", agency_id="IMF.RES")
+        countries = sdmx.to_pandas(data)["codelist"]["CL_ITS_COUNTRY"].reset_index()
+        countries.columns = ["COUNTRY", "COUNTRY_NAME"]
+        df = df.merge(countries, on="COUNTRY", how="left")
         # probably only changes Kosovo, could do this manually, but this makes sure others are caught as well
-        country_df["iso3"] = make_iso3_column(country_df, "label")
+        df["iso3"] = make_iso3_column(df, "COUNTRY_NAME")
+        # some cleaning
+        df["iso3"] = df["iso3"].apply(lambda x: x[0] if type(x) is list else x)
+        df = df.rename(columns={"TIME_PERIOD": "year", "value": "gdp_ppp"})
+        df = df.set_index(["iso3", "year"]).sort_index()[["gdp_ppp"]]
+        return df
 
-        df_imf = df_imf.loc[
-            list(df_imf.reset_index().iso3.isin(list(country_df.index)))
-        ].reset_index()
-        df_imf["iso3"] = df_imf.iso3.apply(lambda x: country_df.loc[x, "iso3"])
-        df_imf["year"] = df_imf["year"].astype(int)
-        df_imf = df_imf.set_index(["iso3", "year"]).sort_index()
-        df_imf = df_imf * scaling_factor
-        return df_imf
+
+if __name__ == "__main__":
+    config = ConfigParser()
+    imf = IMFGDPData(config=config)
+    df_imf = imf.load_data()
+    df_preprocessed = imf.preprocess_data(df_imf)
+    print(df_preprocessed.head())
