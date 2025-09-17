@@ -212,7 +212,7 @@ global:
   regenerate:
     # specify list of indicator composite_id(s) to force regeneration of indicator calculation.
     indicator:
-      - VUL_environmental_biodiversity
+      # - VUL_socioeconomic_deprivation
     # Specify list of indicator composite_id(s) or dataset data_key(s) to force regeneration of 
     # preprocessing.
     # Additionally, "base_grid" to regenerate the grid and "climate_exposure" to regenerate the 

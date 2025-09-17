@@ -82,11 +82,3 @@ class IMFGDPData(Dataset):
         df = df.rename(columns={"TIME_PERIOD": "year", "value": "gdp_ppp"})
         df = df.set_index(["iso3", "year"]).sort_index()[["gdp_ppp"]]
         return df
-
-
-if __name__ == "__main__":
-    config = ConfigParser()
-    imf = IMFGDPData(config=config)
-    df_imf = imf.load_data()
-    df_preprocessed = imf.preprocess_data(df_imf)
-    print(df_preprocessed.head())
