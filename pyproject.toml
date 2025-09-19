@@ -35,6 +35,7 @@ dependencies = [
     "schedule>=1.2.2",
     "scikit-learn>=1.6.1",
     "scipy>=1.15.2",
+    "sdmx1>=2.22.0",
     "shapely>=2.1.0",
     "sqlalchemy>=2.0.43",
     "swifter>=1.4.0",
