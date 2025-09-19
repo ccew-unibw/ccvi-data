@@ -37,6 +37,7 @@ dependencies = [
     "scipy>=1.15.2",
     "sdmx1>=2.22.0",
     "shapely>=2.1.0",
+    "sqlalchemy>=2.0.43",
     "swifter>=1.4.0",
     "tqdm>=4.67.1",
     "tropycal>=1.3",
