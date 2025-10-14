@@ -1,5 +1,6 @@
 # add python path to the base directory
 import os
+import re
 import tropycal.tracks as tracks
 import ssl
 import requests
@@ -1235,8 +1236,8 @@ def get_latest_ibtracs_url():
     links = soup.find_all("a")
 
     # Extract directories and filter out the ones that aren't directories
-    directories = [link.get("href") for link in links if link.get("href").endswith("/")]
-
+    directories = [link.get("href") for link in links if re.match(r"v\d{2}r\d{2}", link.get("href"))]
+    
     # Assuming the latest directory is the last one in alphabetical order
     if directories:
         latest_directory = directories[-1]
