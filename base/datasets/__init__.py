@@ -17,7 +17,7 @@ from .gee_precipitation_anomaly import GEEPrecipitationAnomaly
 from .hdi import HDIData
 from .ibtrak_cyclones import IBTRAKData
 from .ilo import ILOData
-from .imf import IMFData
+from .imf import IMFGDPData
 from .lgrip import LGRIPData
 from .modis_wildfires import MODISWildfiresData
 from .ntl import NTLData
@@ -52,7 +52,7 @@ __all__ = [
     "HDIData",
     "IBTRAKData",
     "ILOData",
-    "IMFData",
+    "IMFGDPData",
     "LGRIPData",
     "MODISWildfiresData",
     "NTLData",
