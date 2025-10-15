@@ -8,16 +8,15 @@ from utils.data_processing import make_iso3_column
 class IMFGDPData(Dataset):
     """Handles downloading and preprocessing of International Monetary Fund (IMF) data.
 
-    Implements `load_data()` to download specified yearly economic indicators
-    from the IMF DataMapper API.
-    Implements `preprocess_data()` to filter data to countries, matches the
-    format with the standard country-year panel, and apply numerical scaling to
-    adjust data values.
+    Implements `load_data()` to download yearly GDP PPP data from the IMF SDMX API.
+    Implements `preprocess_data()` to filter data to countries, clean the data,
+    and matche the format with the standard country-year panel.
 
     Attributes:
         data_key (str): Set to "imf".
         local (bool): Set to False, as data is sourced from the IMF API.
         needs_storage (bool): Set to False.
+        client (sdmx.Client): SDMX client instance used to download data.
     """
 
     data_key: str = "imf"
@@ -29,21 +28,13 @@ class IMFGDPData(Dataset):
         self.client = sdmx.Client("IMF_DATA")
 
     def load_data(self) -> pd.DataFrame:
-        """Downloads yearly data for multiple indicators from the IMF DataMapper API.
+        """Downloads yearly GDP PPP data for multiple indicators from the IMF SDMX API.
 
-        For each indicator code provided, it constructs the API URL, fetches the
-        data, parses the JSON response, and reshapes the values into a pandas Series
-        indexed by ('year', 'iso3'). All Series are then concatenated into a single
-        DataFrame. The 'iso3' codes used here are still IMF's country codes.
-
-        Args:
-            indicators (dict[str, str]): A dictionary mapping IMF indicator
-                codes to desired column names for these indicators in the output
-                DataFrame.
+        Constructs the client query, fetches the data, converts to pandas and
+        returns the raw dataframe.
 
         Returns:
-            pd.DataFrame: A DataFrame indexed by ('year', 'iso3') containing
-                all specified indicators.
+            pd.DataFrame: A raw DataFrame the downloaded GDP PPP data.
         """
         # resource_id: Data provider, Dataset
         # key: All countries (wildcard), GDP PPP, Annual
@@ -59,9 +50,10 @@ class IMFGDPData(Dataset):
     def preprocess_data(self, df_imf: pd.DataFrame) -> pd.DataFrame:
         """Preprocesses the downloaded IMF data.
 
-        This method filters the data to only countries using IMF's country API,
-        dropping aggregates. It standardizes the ISO3 code to the ones used in
-        the index and adjust indicator values to absolute values.
+        This method adds country information via the IMF API for debugging,
+        standardizes the ISO3 code to the ones used in the index, performes some 
+        cleaning droping aggregates, and matches data to a standardized
+        country-year panel.
 
         Args:
             df_imf (pd.DataFrame): The DataFrame from `load_data()`.
@@ -79,6 +71,9 @@ class IMFGDPData(Dataset):
         df["iso3"] = make_iso3_column(df, "COUNTRY_NAME")
         # some cleaning
         df["iso3"] = df["iso3"].apply(lambda x: x[0] if type(x) is list else x)
+        df = df.loc[df["iso3"] != "not found"]
         df = df.rename(columns={"TIME_PERIOD": "year", "value": "gdp_ppp"})
         df = df.set_index(["iso3", "year"]).sort_index()[["gdp_ppp"]]
+        # this should all be non-NA since model data
+        df = df.dropna()
         return df
