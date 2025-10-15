@@ -584,7 +584,7 @@ class GEEPrecipitationAnomaly(Dataset):
             df = pd.read_parquet(fp_preprocessed)
             last_quarter_date = get_quarter("last")
 
-            if df["time"].max().date() < last_quarter_date:
+            if df["time"].max() < last_quarter_date:
                 raise FileNotFoundError
             return df
         except FileNotFoundError:
