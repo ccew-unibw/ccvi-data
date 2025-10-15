@@ -161,7 +161,7 @@ An optional add_raw_value() method can also be overridden. The workflow, (re-)ge
 
 The `Dimension` and `Pillar` classes represent the aggregation levels within the CCVI structure, with the top-level `CCVI` class performing the final risk score aggregations. Dimension classes aggregate multiple Indicator scores, while Pillar classes aggregate Dimension scores. The common logic for these aggregations is provided by the `AggregateScore` base class, which is inherited by the Dimension, Pillar, and CCVI classes. 
 
-Aggregate score classes initialized with a list of their constituent objects (e.g., a list of Indicator instances for a Dimension) and the shared ConfigParser. They retrieve their specific aggregation parameters from the config and create their own StorageManager, using their composite_id (e.g., CON_level) as output filename. Aggregate scores are always in the data pipeline unless the same instance is run twice.
+Aggregate score classes are initialized with a list of their constituent objects (e.g., a list of Indicator instances for a Dimension) and the shared ConfigParser. They retrieve their specific aggregation parameters from the config and create their own StorageManager, using their composite_id (e.g., CON_level) as output filename. Aggregate scores are always recalculated in the data pipeline unless the same instance is run twice.
 
 Similar to indicators, the `run()` method orchestrates the aggregation process: it 
 * validates the input components and checks if they have been generated, 
@@ -170,7 +170,7 @@ Similar to indicators, the `run()` method orchestrates the aggregation process: 
 * calculates aggreate scores via `aggregate()`.
 * saves the final aggregated score as `.parquet` file to the output/ folder.
 
-An optional add_exposure() modifies the data before aggregation depending on the `has_exposure` attribute, which is implemented for the climate pillar in the CCVI in the `climate.shared.ClimateDimension` subclass.
+An optional `add_exposure()` method modifies the data before aggregation to the dimension level depending on the `has_exposure` flag, which can be accessed by using the `base.shared.ExposureDimension` subclass instead of the regular `Dimension` class.
 
 The `CCVI` top-level class does not store its own scores directly, but creates a DataFrame with **all** CCVI components and stores it in a versioned subfolder in the 'YYYY-Q#' (e.g. '2025-Q1') subfolder. It also creates and stores data recency metadata, denoting when the underlying datasources for each indicator were last updated.
 
@@ -179,9 +179,9 @@ The `CCVI` top-level class does not store its own scores directly, but creates a
 
 The framework relies on three core utility classes for its fundamental operations:
 
-* The `ConfigParser` it loads and validates the config.yaml file and provides structured access to global (including regeneration), data source, indicator, and aggregation configurations. 
-* The output structure, all indicator score I/O and some caching is handled by the `StorageManager`. This class creates the standard input/, processing/, and output/ directory structure and manages component-specific subfolders within processing/. It offers methods to save and load pandas DataFrames (as Parquet files), build file paths, and check for file existence or up-to-date generation of component outputs. It also manages the composite_id of the indicator and aggregate scores.
-* The `GlobalBaseGrid` defines and manages the standard 0.5°x0.5° geospatial grid for the index. It handles the creation or loading of this grid, preprocesses country boundaries, filters water areas, and matches grid cells to countries, providing spatial resolution for all gridded indicators. The generation and caching of the base grid is orchestrated in the `run()` method.
+* The `ConfigParser` loads and validates the `config.yaml` file and provides structured access to global (including regeneration), data source, indicator, and aggregation configurations. 
+* The `StorageManager` handles the output folder structure, all indicator score I/O and some caching. This class creates and manages the standard `input/`, `processing/`, and `output/` directories including component-specific subfolders within `processing/`. It offers methods to save and load pandas DataFrames (as Parquet files), build file paths, and check for file existence or up-to-date generation of component outputs. It also manages the `composite_id` of the indicator and aggregate scores.
+* The `GlobalBaseGrid` defines and manages the standard 0.5°x0.5° geospatial grid for the index. It handles the creation (preprocessing country boundaries, filtering water areas, and matching grid cells to countries) and loading of the grid, providing the spatial resolution for all gridded indicators. The generation workflow is orchestrated in the `run()` method.
 
 ## Contributions
 
