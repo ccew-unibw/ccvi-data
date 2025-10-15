@@ -402,7 +402,6 @@ class CDSECMWFSPEIData(Dataset):
         except FileNotFoundError:
             self.download_data()
             df_event_level = self.storage.load("processing", filename=self.filename)
-            return df_event_level
 
         # Set an instance attribute for easy checking
         self.dataset_available = True
