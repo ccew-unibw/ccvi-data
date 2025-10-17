@@ -21,7 +21,7 @@ from base.datasets import (
     SWIIDData,
     SDGData,
     HDIData,
-    IMFData,
+    IMFGDPData,
     ILOData,
 )
 from base.objects import (
@@ -46,7 +46,7 @@ def get_vul_country_data():
     swiid = SWIIDData(config)
     sdg = SDGData(config)
     hdi = HDIData(config)
-    imf = IMFData(config)
+    imf = IMFGDPData(config)
     ilo = ILOData(config)
 
     df_wpp = wpp.preprocess_wpp(wpp.load_data())
@@ -54,14 +54,7 @@ def get_vul_country_data():
     df_cpi = cpi.preprocess_data(cpi.load_data())
     wb_dict = {"RL.EST": "rl", "NV.AGR.TOTL.ZS": "agr_value_added", "NY.GDP.MKTP.PP.CD": "gdp_ppp"}
     df_wb = wb.load_data(wb_dict)
-    df_imf = imf.preprocess_data(
-        imf.load_data(
-            {
-                "PPPGDP": "gdp_ppp",
-            }
-        ),
-        scaling_factor=1000000000,
-    )
+    df_imf = imf.preprocess_data(imf.load_data())
     df_gdp = ccvi.vul_socioeconomic_deprivation._merge_gdp_data(df_wb, df_imf)
     df_gdp = ccvi.vul_socioeconomic_deprivation._add_pc_values(df_gdp, df_wpp)
     df_wb = pd.concat([df_wb[["rl", "agr_value_added"]], df_gdp[["gdp_ppp", "gdp_ppp_pc"]]], axis=1)
@@ -331,4 +324,4 @@ if __name__ == "__main__":
     vul_political.run()
     vul_demographic.run()
     vul_environmental.run()
-    ccvi_tool.run(True)
+    ccvi_tool.run()
