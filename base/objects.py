@@ -275,6 +275,7 @@ class StorageManager:
         storage_base_path: str,
         requires_processing_storage: bool = False,
         processing_folder: str | None = None,
+        composite_id: str | None = None
     ):
         """Initializes the StorageManager and sets up directories.
 
@@ -294,12 +295,10 @@ class StorageManager:
             raise ValueError("StorageManager requires a valid storage_base_path string.")
         self.storage_base_path = storage_base_path
         self.requires_processing_storage = requires_processing_storage
-        if self.requires_processing_storage and processing_folder is None:
-            self.console.print(
-                "No processing folder provided but required processing storage indicated. Unless "
-                "`set_composite_id()` is called from the class using the this StorageManager "
-                "instance, there will be no processing folder created, which may cause problems "
-                "later on."
+        if requires_processing_storage:
+            assert processing_folder or composite_id, (
+                "Processing folder requirement indicated, please provide a 'processing_folder'." +
+                "or a 'composite_id."
             )
         if not self.requires_processing_storage and processing_folder is not None:
             processing_folder = None
@@ -307,80 +306,26 @@ class StorageManager:
                 "Processing folder provided but required processing storage not indicated. No "
                 "processing folder will be created."
             )
-        self.storage_paths = self._setup_storage_paths(self.storage_base_path, processing_folder)
-
-    def set_composite_id(
-        self,
-        pillar: str,
-        dim: str | None = None,
-        id: str | None = None,
-        component_type: Literal["indicator", "dimension", "pillar"] = "indicator",
-    ) -> None:
-        """Sets the composite identifier for the index component.
-
-        This ID is also used as the default filename for saving/loading indicators
-        and as the processing subfolder for a component. Method prevents the use
-        of underscores ('_') within individual component identifiers (pillar, dim, id).
-        Updates self.storage_paths["processing"] with the composite_id as a subfolder
-        and creates the folder if `self.requires_processing_storage` = True.
-
-        Args:
-            pillar (str): The pillar ID for the component.
-            dim (str| None, optional): The dimension ID for the component.
-            id (str | None, optional): The specific indicator ID.
-                Required if `component_type` is "indicator". Defaults to None.
-            component_type (str, optional): The type of component ("indicator",
-                "dimension" or "pillar"), determining the structure of the composite ID.
-                Defaults to "indicator".
-        """
-        if component_type == "indicator":
-            if id is None:
-                raise ValueError("An indicator composite ID requires an indicator id. Got None.")
-            if dim is None:
-                raise ValueError("An indicator composite ID requires a dimension id. Got None.")
-            if "_" in pillar or "_" in dim or "_" in id:
-                raise ValueError(
-                    'Pillar, dimension, and indicator id components may not contain "_".'
-                    " Please adjust accordingly."
+        if composite_id:
+            self.composite_id = composite_id
+            if processing_folder and processing_folder != composite_id:
+                self.console.print(
+                    "Different 'processing_folder' and 'composite_id' provided, using composite_id"+
+                    " as processing folder."
                 )
-            self.composite_id = f"{pillar}_{dim}_{id}"
-        elif component_type == "dimension":
-            if dim is None:
-                raise ValueError("A dimension composite ID requires a dimension id. Got None.")
-            if "_" in pillar or "_" in dim:
-                raise ValueError(
-                    'Pillar and dimension id components may not contain "_".'
-                    " Please adjust accordingly."
-                )
-            else:
-                self.composite_id = f"{pillar}_{dim}"
-        elif component_type == "pillar":
-            if "_" in pillar:
-                raise ValueError(
-                    'Pillar and dimension id components may not contain "_".'
-                    " Please adjust accordingly."
-                )
-            else:
-                self.composite_id = pillar
-        else:
-            raise ValueError(
-                f'Argument "component_type" can be one of ["indicator", "dimension", "pillar"], '
-                f"got {component_type}."
-            )
-        # update processing path and cleanup
-        self.storage_paths["processing"] = os.path.join(
-            self.storage_base_path, "processing", self.composite_id
-        )
-        if self.requires_processing_storage:
-            os.makedirs(self.storage_paths["processing"], exist_ok=True)
+            processing_folder = composite_id
+            
+        self.storage_paths = self._setup_storage_paths(processing_folder)
 
-    def _setup_storage_paths(self, base_path: str, processing_folder: str | None) -> dict[str, str]:
+    def _setup_storage_paths(self, processing_folder: str | None) -> dict[str, str]:
         """Setup the storage paths based on a base_path.
 
         Creates 'input', 'processing', and 'output' subdirectories within the
         specified `storage_folder` if they don't exist, and returns the paths
         as dictionary. If `processing folder` is not None, the corresponding
         subdirectory will also be created.
+        Updates self.storage_paths["processing"] with the composite_id as a subfolder
+        and creates the folder if `self.requires_processing_storage` = True.
 
         Args:
             base_path (str): The storage root directory.
@@ -391,11 +336,14 @@ class StorageManager:
         """
         storage = {}
         for stage in ["input", "processing", "output"]:
-            path = os.path.join(base_path, stage)
+            path = os.path.join(self.storage_base_path, stage)
             if stage == "processing" and processing_folder is not None:
                 path = os.path.join(path, processing_folder)
+            if stage == "processing" and not self.requires_processing_storage:
+                continue
             os.makedirs(path, exist_ok=True)
             storage[stage] = path
+    
         return storage
 
     def save(
@@ -421,8 +369,6 @@ class StorageManager:
         """
         if mode not in ["processing", "output"]:
             raise ValueError(f'Allowed values for mode are ["processing", "output"], got {mode}')
-        if mode == "processing":
-            os.makedirs(self.storage_paths["processing"], exist_ok=True)
         fp = self.build_filepath(mode, filename, subfolder)
         df.to_parquet(fp, compression="brotli")
 
@@ -538,6 +484,65 @@ class StorageManager:
                 os.makedirs(path, exist_ok=True)
             fp = os.path.join(path, f"{filename}{filetype}")
         return fp
+
+class CompositeIDMixin:
+    """Shared Mixin class handling the composite ID logic for index components."""
+    def get_composite_id(
+        self,
+        pillar: str,
+        dim: str | None = None,
+        id: str | None = None,
+        component_type: Literal["indicator", "dimension", "pillar"] = "indicator",
+    ) -> str:
+        """Gets the composite identifier for the index component.
+
+        This ID is also used as the default filename for saving/loading indicators
+        and as the processing subfolder for a component. Method prevents the use
+        of underscores ('_') within individual component identifiers (pillar, dim, id).
+
+        Args:
+            pillar (str): The pillar ID for the component.
+            dim (str| None, optional): The dimension ID for the component.
+            id (str | None, optional): The specific indicator ID.
+                Required if `component_type` is "indicator". Defaults to None.
+            component_type (str, optional): The type of component ("indicator",
+                "dimension" or "pillar"), determining the structure of the composite ID.
+                Defaults to "indicator".
+        """
+        if component_type == "indicator":
+            if id is None:
+                raise ValueError("An indicator composite ID requires an indicator id. Got None.")
+            if dim is None:
+                raise ValueError("An indicator composite ID requires a dimension id. Got None.")
+            if "_" in pillar or "_" in dim or "_" in id:
+                raise ValueError(
+                    'Pillar, dimension, and indicator id components may not contain "_".'
+                    " Please adjust accordingly."
+                )
+            return f"{pillar}_{dim}_{id}"
+        elif component_type == "dimension":
+            if dim is None:
+                raise ValueError("A dimension composite ID requires a dimension id. Got None.")
+            if "_" in pillar or "_" in dim:
+                raise ValueError(
+                    'Pillar and dimension id components may not contain "_".'
+                    " Please adjust accordingly."
+                )
+            else:
+                return f"{pillar}_{dim}"
+        elif component_type == "pillar":
+            if "_" in pillar:
+                raise ValueError(
+                    'Pillar and dimension id components may not contain "_".'
+                    " Please adjust accordingly."
+                )
+            else:
+                return pillar
+        else:
+            raise ValueError(
+                f'Argument "component_type" can be one of ["indicator", "dimension", "pillar"], '
+                f"got {component_type}."
+            )
 
 
 class GlobalBaseGrid:
@@ -890,7 +895,7 @@ class GlobalBaseGrid:
             )
 
 
-class Indicator(ABC):
+class Indicator(ABC, CompositeIDMixin):
     """Abstract base class for computing an indicator within the CCVI.
 
     Provides common initialization logic for setting up identifiers, configuration,
@@ -958,13 +963,13 @@ class Indicator(ABC):
         # typed to dict even though it can be None to prevent type checking errors
         self.indicator_config: dict[str, Any] = config.get_indicator_config(pillar, dim, id)  # type: ignore
 
-        # storage functionality, which also takes care of the indicator ID
+        self.composite_id = self.get_composite_id(pillar, dim, id, component_type="indicator")
+        # storage functionality
         self.storage = StorageManager(
             storage_base_path=self.global_config["storage_path"],
             requires_processing_storage=self.requires_processing_storage,
+            composite_id=self.composite_id
         )
-        self.storage.set_composite_id(pillar, dim, id, component_type="indicator")
-        self.composite_id = self.storage.composite_id
         self.generated = self.storage.check_component_generated()
 
         # add regenerate config
@@ -1299,7 +1304,7 @@ class AggregateScore:
         return df_recency
 
 
-class Dimension(AggregateScore):
+class Dimension(AggregateScore, CompositeIDMixin):
     """Orchestrates calculation of a dimension score, aggregating multiple indicators.
 
     Provides a standardized implementation for combining indicator scores based
@@ -1358,12 +1363,12 @@ class Dimension(AggregateScore):
         self.global_config = config.get_global_config()
         self.aggregation_config = config.get_aggregation_config(pillar, dim)
         # setup storage and ID
+        self.composite_id = self.get_composite_id(pillar, dim, component_type="dimension")
         self.storage = StorageManager(
             storage_base_path=self.global_config["storage_path"],
             requires_processing_storage=self.requires_processing_storage,
+            composite_id= self.composite_id
         )
-        self.storage.set_composite_id(pillar, dim, component_type="dimension")
-        self.composite_id = self.storage.composite_id
         self.generated = False
 
         self.console.print(
@@ -1476,7 +1481,7 @@ class Dimension(AggregateScore):
         return
 
 
-class Pillar(AggregateScore):
+class Pillar(AggregateScore, CompositeIDMixin):
     """Orchestrates calculation of a pillar score, aggregating multiple dimensions.
 
     Provides a standardized implementation for combining dimension scores based
@@ -1526,13 +1531,12 @@ class Pillar(AggregateScore):
         self.global_config = config.get_global_config()
         self.aggregation_config = config.get_aggregation_config(pillar)
         # setup storage and ID
+        self.composite_id = self.get_composite_id(pillar, component_type="pillar")
         self.storage = StorageManager(
             storage_base_path=self.global_config["storage_path"],
             requires_processing_storage=self.requires_processing_storage,
+            composite_id=self.composite_id
         )
-        self.storage.set_composite_id(pillar, component_type="pillar")
-        # same as self.pillar, kept for consistency
-        self.composite_id = self.storage.composite_id
         self.generated = False
 
         self.console.print(
