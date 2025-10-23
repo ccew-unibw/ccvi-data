@@ -178,7 +178,7 @@ class WorldPopData(Dataset):
                 progress.update(task_download, advance=1)
                 self.console.print("Downloading WorldPop... DONE.")
         self.data_loaded = True
-        self.config.set_regenerated_globally(self.data_key, "data")
+        self.regenerate["data"] = False
         return
 
     def _download_worldpop_file(self, url, fp, layer_name="pop_count") -> None:
@@ -462,7 +462,7 @@ class WorldPopData(Dataset):
                 progress.update(agg_task, advance=1)
                 progress.remove_task(year_task)
         self.storage.save(df, "processing", "wp_index")
-        self.config.set_regenerated_globally(self.data_key, "preprocessing")
+        self.regenerate["preprocessing"] = False
         return df
 
     def _prep_base_df(

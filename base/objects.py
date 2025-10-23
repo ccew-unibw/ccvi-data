@@ -54,6 +54,7 @@ class ConfigParser:
         self.all_config = self._load_yaml(config_path)
         self._validate_top_level_config()
         self.console.print(f"Global config: {self.get_global_config()}")
+        self.regeneration_configs_dict: dict[str, dict[str, bool]] = {}
 
     def _validate_top_level_config(self):
         """Validates the presence and uniqueness of required top-level keys."""
@@ -134,7 +135,7 @@ class ConfigParser:
         )
         return config
 
-    def get_regeneration_config(self, id: str) -> dict[str, bool]:
+    def get_regeneration_config(self, id: str, keys: list[str]) -> dict[str, bool]:
         """Builds the regeneration config for a specific component based on its id.
 
         Determines whether regeneration is desired based on the 'regenerate'
@@ -148,12 +149,16 @@ class ConfigParser:
         Args:
             id (str): The composite ID of the component (`composite_id`
                 for an indicator, or `data_key` for a dataset) for which the
-                regeneration flags are being determined.
+                regeneration flags are being determined. Assumed to be unique.
+            keys (list[str]): List of all keys expected for the id. Depends on
+                the type of the object calling this, but handled outside this
+                class. May only contain 'indicator', 'data', and 'preprocessing'.
 
         Returns:
-            dict[str, bool]: A dictionary with keys 'indicator', 'data', and
-                'preprocessing', where each value is a boolean indicating whether
-                that stage should be regenerated for the given `id`.
+            dict[str, bool]: A dictionary with keys 'keys', where each value is 
+                a boolean indicating whether that stage should be regenerated 
+                for the given `id`. Note that this is a reference to the object
+                stored in the ConfigParser instance.
         """
         regeneration_config = self.get_global_config()["regenerate"]
         regenerate_config_keys = {"indicator", "data", "preprocessing"}
@@ -162,56 +167,20 @@ class ConfigParser:
             "Regenerate keys do not match requirements. Check for missing keys."
             f"\nRequired: {regenerate_config_keys}."
         )
-        regeneration_config_id = {}
-        for key in regeneration_config:
-            if regeneration_config[key] is None:
-                regeneration_config_id[key] = False
-            elif "all" in regeneration_config[key]:
-                regeneration_config_id[key] = True
-            elif id in regeneration_config[key]:
-                regeneration_config_id[key] = True
-            else:
-                regeneration_config_id[key] = False
-        return regeneration_config_id
-
-    def set_regenerated_globally(
-        self, id: str, key: Literal["data", "preprocessing", "indicator", None] = None
-    ) -> None:
-        """Modifies the global config in memory to mark a component as regenerated.
-
-        This method removes the specified `id` from the regeneration lists
-        stored in `self.all_config['global']['regenerate']` if found. This prevents
-        subsequent calls to `get_regeneration_config` for the same `id` (and `key`)
-        from returning True, effectively ensuring that a component is not
-        unnecessarily regenerated multiple times within the same session if it was
-        initially flagged for regeneration.
-
-        Note: This modifies the `self.all_config` dictionary in place. It does
-        not write changes back to the `config.yaml` file.
-
-        Args:
-            id (str): The composite ID of the component that has been processed
-                and should no longer be flagged for regeneration.
-            key (Literal["data", "preprocessing", "indicator", None], optional):
-                The specific regeneration stage to clear for the `id`.
-                If "data", "preprocessing", or "indicator", only that specific
-                list is modified. If None (default), the `id` is removed from
-                all regeneration lists if present.
-        """
-        global_regenerate_config = self.all_config["global"]["regenerate"]
-        if key is None:
-            for key in global_regenerate_config:
-                if global_regenerate_config[key] is None:
-                    pass
-                elif id in global_regenerate_config[key]:
-                    global_regenerate_config[key].remove(id)
-        elif global_regenerate_config[key] is None:
-            pass
-        else:
-            if id in global_regenerate_config[key]:
-                global_regenerate_config[key].remove(id)
-        self.all_config["regenerate"] = global_regenerate_config
-        return
+        assert all(key in regenerate_config_keys for key in keys), f"'keys' list can only contain {regenerate_config_keys}."
+        if id not in self.regeneration_configs_dict:
+            regeneration_config_id = {}
+            for key in regeneration_config:
+                if regeneration_config[key] is None:
+                    regeneration_config_id[key] = False
+                elif "all" in regeneration_config[key]:
+                    regeneration_config_id[key] = True
+                elif id in regeneration_config[key]:
+                    regeneration_config_id[key] = True
+                else:
+                    regeneration_config_id[key] = False
+            self.regeneration_configs_dict[id] = {key: regeneration_config_id[key] for key in keys}
+        return self.regeneration_configs_dict[id]
 
     def get_aggregation_config(self, pillar: str, dim: str | None = None) -> dict[str, Any]:
         """Retrieves the aggreation configuration for a specific dimension / pillar.
@@ -585,7 +554,7 @@ class GlobalBaseGrid:
         """
         self.global_config = config.get_global_config()
         self.config = config.get_data_config(["countries", "land_mask", "inland_water_mask"])
-        self.regenerate = config.get_regeneration_config("base_grid")["preprocessing"]
+        self.regenerate = config.get_regeneration_config("base_grid", ["preprocessing"])["preprocessing"]
         self.storage = StorageManager(
             storage_base_path=self.global_config["storage_path"],
             requires_processing_storage=True,
@@ -973,8 +942,7 @@ class Indicator(ABC, CompositeIDMixin):
         self.generated = self.storage.check_component_generated()
 
         # add regenerate config
-        regenerate_config = config.get_regeneration_config(self.composite_id)
-        self.regenerate = {key: regenerate_config[key] for key in ["indicator", "preprocessing"]}
+        self.regenerate = config.get_regeneration_config(self.composite_id, ["indicator", "preprocessing"])
         # this allows acces to load the grid for data structures
         self.grid = grid
 
@@ -1118,8 +1086,6 @@ class Indicator(ABC, CompositeIDMixin):
             # for the instance:
             self.regenerate["indicator"] = False
             self.regenerate["preprocessing"] = False
-            # for new instances in the same session - modify all_config from config:
-            self.config.set_regenerated_globally(self.composite_id)
         return
 
 
@@ -1270,8 +1236,6 @@ class AggregateScore:
             return gmean(df, axis=1, nan_policy=nan_policy, weights=weights)  # type: ignore
         elif method == "pmean":
             return pmean(df, 2, axis=1, nan_policy=nan_policy, weights=weights)  # type: ignore
-        elif method == "conflict_pillar":
-            return calculate_score_conflict(df, ignore_nan=ignore_nan)
         else:
             raise ValueError(
                 f'Argument "method" needs to be one of ["mean", "pmean", "gmean"], got {method}.'
@@ -1668,8 +1632,7 @@ class Dataset(ABC):
         self.config = config
         self.global_config = config.get_global_config()
         # add regenerate config
-        regenerate_config = config.get_regeneration_config(self.data_key)
-        self.regenerate = {key: regenerate_config[key] for key in ["data", "preprocessing"]}
+        self.regenerate = config.get_regeneration_config(self.data_key, ["data", "preprocessing"])
         if self.needs_storage:
             self.storage = StorageManager(
                 storage_base_path=self.global_config["storage_path"],

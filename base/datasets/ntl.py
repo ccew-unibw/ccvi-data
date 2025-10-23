@@ -233,7 +233,7 @@ class NTLData(Dataset):
                 )
             if failed == 0:
                 self.data_loaded = True
-                self.config.set_regenerated_globally(self.data_key, "data")
+                self.regenerate["data"] = False
         return
 
     def _download_decompress_gz(self, url: str, fp: str, chunk_size: int = 2048) -> bool:
@@ -405,7 +405,7 @@ class NTLData(Dataset):
                 df_yearly.update(df_ntl, overwrite=False)
                 progress.update(task_agg, advance=0.2)
             self.storage.save(df_yearly, "processing", "ntl_yearly")
-            self.config.set_regenerated_globally(self.data_key, "preprocessing")
+            self.regenerate["preprocessing"] = False
         return df_yearly
 
     def _aggregate_to_grid(
