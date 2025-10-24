@@ -131,7 +131,7 @@ class SubnationalHDIData(Dataset):
             )
             df = gdf_grid.drop(columns=["geometry", "iso3"])
             df.to_csv(fp)
-            self.config.set_regenerated_globally(self.data_key, "preprocessing")
+            self.regenerate["preprocessing"] = False
         return df
 
     def _hdi_merge(

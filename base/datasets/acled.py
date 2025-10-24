@@ -32,9 +32,9 @@ class ACLEDData(Dataset):
         data_key (str): Set to "acled".
         local (bool): Indicates whether to use local ACLED dumps (True) or
             download data via the ACLED API (False).
-        acled_available (bool): Flag set to True after data is
+        acled_available (bool): Internal logic check flag; set to True after data is
             successfully loaded or checked by `load_data`.
-        acled_preprocessed (bool): Flag set to True after data is
+        acled_preprocessed (bool): Internal logic check flag; set to True after data is
             successfully preprocessed by `preprocess_data`.
         grid (GlobalBaseGrid): GlobalBaseGrid instance, used to load the country
             basemap for coverage matching.
@@ -81,6 +81,8 @@ class ACLEDData(Dataset):
         filename = f"acled_{last_quarter_date.year}_Q{int(last_quarter_date.month / 3)}"
         columns = ["YEAR", "EVENT_TYPE", "LATITUDE", "LONGITUDE", "FATALITIES", "EVENT_DATE"]
         try:
+            if self.regenerate["data"]:
+                raise FileNotFoundError
             df_acled = self.storage.load("processing", filename=filename)
         except FileNotFoundError:
             if self.local:
@@ -109,6 +111,7 @@ class ACLEDData(Dataset):
                     f"up to {last_quarter_date}."
                 )
             self.storage.save(df_acled[columns], "processing", filename=filename)
+            self.regenerate["data"] = False
         # Set an instance attribute for easy checking
         self.acled_available = True
         return df_acled
@@ -195,7 +198,8 @@ class ACLEDData(Dataset):
             return df
         except FileNotFoundError:
             self.console.print(
-                "No preprocessed ACLED data in storage or out of date, processing event data..."
+                "No preprocessed ACLED data in storage, out of date, or regeneration requested,"
+                " processing ACLED event data..."
             )
 
             # don't automatically start ACLED download since those are separate step in the
@@ -225,6 +229,7 @@ class ACLEDData(Dataset):
             # fill NAs with 0 where coverage exists
             df.loc[df["acled_coverage"]] = df.loc[df["acled_coverage"]].fillna(0)
             self.storage.save(df, "processing", filename)
+            self.regenerate["preprocessing"] = False
         return df
 
     def _acled_counts_to_grid(self, df_data: pd.DataFrame, df_acled: pd.DataFrame) -> pd.DataFrame:

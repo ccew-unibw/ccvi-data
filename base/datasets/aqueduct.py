@@ -114,7 +114,7 @@ class AqueductData(Dataset):
             gdf_grid = assign_areas_to_grid(gdf_grid, gdf_aqueduct, "pfaf_id", "pfaf_id")
             df: pd.DataFrame = gdf_grid[["pfaf_id"]]
             df.to_csv(fp)
-            self.config.set_regenerated_globally(self.data_key, "preprocessing")
+            self.regenerate["preprocessing"] = False
         return df
 
     def calculate_grid_values(
