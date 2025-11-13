@@ -27,7 +27,9 @@ class ConContextActors(Indicator, NormalizationMixin):
         df_wpp = self.wpp.load_data()
         return df_ucdp, df_wpp
 
-    def preprocess_data(self, dfs_input: tuple[pd.DataFrame, pd.DataFrame]) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    def preprocess_data(
+        self, dfs_input: tuple[pd.DataFrame, pd.DataFrame]
+    ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         df_ucdp, df_wpp = dfs_input
         df_ucdp = self.ucdp.preprocess_data(df_ucdp, self.grid)
         country_stats = df_ucdp.groupby(["iso3", "year", "quarter"])[["event_count", "best"]].sum()
@@ -49,7 +51,9 @@ class ConContextActors(Indicator, NormalizationMixin):
         df_wpp = default_impute(df_wpp, location_index="iso3")
         return grouped_base, country_stats, df_wpp
 
-    def create_indicator(self, dfs_preprocessed: tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]) -> pd.DataFrame:
+    def create_indicator(
+        self, dfs_preprocessed: tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]
+    ) -> pd.DataFrame:
         grouped_base, country_stats, df_wpp = dfs_preprocessed
         # event threshold for actors currently set to 0, could be revisited in the future
         event_threshold = 0
@@ -61,8 +65,9 @@ class ConContextActors(Indicator, NormalizationMixin):
         grouped = pd.merge(grouped, country_stats, how="left", on=["iso3", "year", "quarter"])
         grouped = pd.merge(grouped, df_wpp, how="left", on=["iso3", "year", "quarter"])
         grouped[self.composite_id] = (
-            grouped["actor"].apply(np.log1p) * grouped["best"].apply(np.log1p) /
-            grouped["pop_total"].apply(np.log1p)
+            grouped["actor"].apply(np.log1p)
+            * grouped["best"].apply(np.log1p)
+            / grouped["pop_total"].apply(np.log1p)
         )
         # produce some additional history for normalization
         df_base = self.create_base_df(self.global_config["start_year"] - 3)
@@ -73,7 +78,9 @@ class ConContextActors(Indicator, NormalizationMixin):
         df_indicator = df_indicator.rename(columns={"actor": f"{self.composite_id}_raw"})
         # check for date before filling - no need to sort for columns since we drop most
         max_time = df_indicator[~df_indicator.time.isna()].time.max()
-        df_indicator.loc[df_indicator["time"] <= max_time] = df_indicator.loc[df_indicator["time"] <= max_time].fillna(0)
+        df_indicator.loc[df_indicator["time"] <= max_time] = df_indicator.loc[
+            df_indicator["time"] <= max_time
+        ].fillna(0)
         return df_indicator
 
     def normalize(self, df_indicator: pd.DataFrame) -> pd.DataFrame:

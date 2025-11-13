@@ -1,5 +1,5 @@
 import pandas as pd
-from utils.index import get_quarter
+from utils.data_processing import get_quarter
 
 from base.datasets.modis_wildfires import MODISWildfiresData
 from base.objects import Indicator, ConfigParser, GlobalBaseGrid

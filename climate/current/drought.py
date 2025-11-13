@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from utils.index import get_quarter
+from utils.data_processing import get_quarter
 
 from base.datasets.ecmwf_spei import CDSECMWFSPEIData
 from base.objects import Indicator, ConfigParser, GlobalBaseGrid
@@ -48,22 +48,28 @@ class CliCurrentDrought(Indicator, NormalizationMixin):
 
     def create_indicator(self, df_preprocessed: pd.DataFrame) -> pd.DataFrame:
         # Drought indicator
-        # SPEI-12 or the most recent month in the quarter 
-        
+        # SPEI-12 or the most recent month in the quarter
+
         # the raw value should not be reversed and is thus negative
         # the indicator is based on values < 0, with higher values set to 0 for aggregation
         # the indicator score is reversed (so higher normalized values imply more severe drought)
-        
+
         df_indicator = df_preprocessed[["pgid", "year", "quarter", "lat", "lon", "spei12"]]
         df_indicator.rename(columns={"spei12": f"{self.composite_id}_raw"}, inplace=True)
         # filter spei and reverse while preserving NAs
-        df_indicator[self.composite_id] = df_indicator[f"{self.composite_id}_raw"].apply(lambda x: x * -1 if x < 0 or np.isnan(x) else 0)
+        df_indicator[self.composite_id] = df_indicator[f"{self.composite_id}_raw"].apply(
+            lambda x: x * -1 if x < 0 or np.isnan(x) else 0
+        )
         return df_indicator
 
     def normalize(self, df_indicator: pd.DataFrame) -> pd.DataFrame:
         """Standardized normalization via ClimateMixin"""
         df_normalized = self.climate_normalize(
-            df_indicator, self.composite_id, self.indicator_config, self.global_config["start_year"], False
+            df_indicator,
+            self.composite_id,
+            self.indicator_config,
+            self.global_config["start_year"],
+            False,
         )
         return df_normalized
 

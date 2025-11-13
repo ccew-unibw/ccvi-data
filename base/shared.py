@@ -1,15 +1,18 @@
 from base.datasets import WorldPopData
 from base.objects import Dimension, GlobalBaseGrid
-from utils.data_processing import add_time, min_max_scaling
-from utils.index import get_quarter
-from utils.transformations import winsorization_normalization
+from utils.data_processing import (
+    add_time,
+    min_max_scaling,
+    get_quarter,
+    winsorization_normalization,
+)
 
 
 import numpy as np
 import pandas as pd
 
 
-#cannot live in base.objects due to circular import issues with the use of the dataset class
+# cannot live in base.objects due to circular import issues with the use of the dataset class
 class ExposureDimension(Dimension):
     """Modified Dimension implementing exposure logic for use where applicable.
 

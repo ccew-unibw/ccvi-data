@@ -7,7 +7,7 @@ import time
 from datetime import datetime, timedelta
 
 from base.objects import Dataset
-from utils.index import get_quarter
+from utils.data_processing import get_quarter
 
 
 ##########################################

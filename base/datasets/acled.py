@@ -12,8 +12,9 @@ from sqlalchemy import create_engine
 from tqdm import tqdm
 
 from base.objects import ConfigParser, Dataset, GlobalBaseGrid
-from utils.index import get_quarter
-from utils.spatial_operations import coords_to_pgid, round_grid
+from utils.conversions import coords_to_pgid
+from utils.data_processing import get_quarter
+from utils.spatial_operations import round_grid
 
 
 class ACLEDData(Dataset):
@@ -96,7 +97,7 @@ class ACLEDData(Dataset):
                     aws_access_key_id=os.getenv("S3_ACCESS_ID"),
                     aws_secret_access_key=os.getenv("S3_ACCESS_KEY"),
                     endpoint_url=os.getenv("S3_ENDPOINT"),
-                )                
+                )
                 with NamedTemporaryFile("wb", suffix=".db", delete_on_close=False) as f:
                     s3_client.download_fileobj(bucket_name, filename_s3, f)
                     f.flush()

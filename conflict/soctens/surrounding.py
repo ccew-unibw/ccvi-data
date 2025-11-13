@@ -70,7 +70,7 @@ class ConSoctensSurrounding(Indicator, NormalizationMixin):
         quantile = self.indicator_config["normalization_quantile"]
         start_year = self.global_config["start_year"]
         return self.conflict_normalize(df_indicator, self.composite_id, quantile, start_year)
-    
+
 
 # this is possible by adding the root folder as the PYTHONPATH var in .env
 if __name__ == "__main__":

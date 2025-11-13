@@ -9,10 +9,10 @@ from base.objects import (
     Pillar,
     AggregateScore,
     StorageManager,
-    console
+    console,
 )
 from base.shared import ExposureDimension
-from utils.index import get_quarter
+from utils.data_processing import get_quarter
 
 # conflict indicators
 from conflict.level import ConLevelIntensity, ConLevelSurrounding, ConLevelPersistence
@@ -79,9 +79,14 @@ with console.status("Initializing CCVI components...", spinner="earth"):
     # Dim "level"
     con_level_intensity = ConLevelIntensity(config=config, grid=base_grid)
     con_level_surrounding = ConLevelSurrounding(config=config, grid=base_grid)
-    con_level_persistence = ConLevelPersistence(config=config, grid=base_grid, base_indicator=con_level_intensity)
+    con_level_persistence = ConLevelPersistence(
+        config=config, grid=base_grid, base_indicator=con_level_intensity
+    )
     con_level = Dimension(
-        "CON", "level", config=config, indicators=[con_level_intensity, con_level_surrounding, con_level_persistence]
+        "CON",
+        "level",
+        config=config,
+        indicators=[con_level_intensity, con_level_surrounding, con_level_persistence],
     )
 
     # Dim "soctens"
@@ -108,7 +113,7 @@ with console.status("Initializing CCVI components...", spinner="earth"):
         indicators=[con_context_actors, con_context_country],
     )
     con_pillar = Pillar("CON", config=config, dimensions=[con_level, con_soctens, con_context])
-    
+
     ### VULNERABILITY ###
     # Dim "socioeconomic"
     vul_socioeconomic_agriculture = VulSocioeconomicAgriculture(config=config, grid=base_grid)
@@ -231,7 +236,9 @@ with console.status("Initializing CCVI components...", spinner="earth"):
     # Dim "longterm"
     cli_longterm_relative_sea_level = CliLongtermRelativeSeaLevel(config=config, grid=base_grid)
     cli_longterm_temperature_anomaly = CliLongtermTemperatureAnomaly(config=config, grid=base_grid)
-    cli_longterm_precipitation_anomaly = CliLongtermPrecipitationAnomaly(config=config, grid=base_grid)
+    cli_longterm_precipitation_anomaly = CliLongtermPrecipitationAnomaly(
+        config=config, grid=base_grid
+    )
 
     cli_longterm = ExposureDimension(
         base_grid,
@@ -245,8 +252,13 @@ with console.status("Initializing CCVI components...", spinner="earth"):
         ],
     )
     # Pillar
-    cli_pillar = Pillar("CLI", config=config, dimensions=[cli_current, cli_accumulated, cli_longterm])
-    console.print(":globe_showing_europe-africa: Initializing CCVI components... [bold green]DONE[/bold green]")
+    cli_pillar = Pillar(
+        "CLI", config=config, dimensions=[cli_current, cli_accumulated, cli_longterm]
+    )
+    console.print(
+        ":globe_showing_europe-africa: Initializing CCVI components... [bold green]DONE[/bold green]"
+    )
+
 
 class CCVI(AggregateScore):
     """Orchestrates calculation the CCVI from indicator to risk scores.

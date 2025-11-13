@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 
 from base.objects import Dataset, console, GlobalBaseGrid
-from utils.index import get_quarter
+from utils.data_processing import get_quarter
 from utils.gee_daily import daily_ERA5_download
 
 

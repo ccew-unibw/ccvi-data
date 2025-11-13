@@ -8,7 +8,7 @@ from multiprocessing import Pool
 
 
 from base.objects import Dataset, GlobalBaseGrid, console
-from utils.index import get_quarter
+from utils.data_processing import get_quarter
 from utils.gee_daily import daily_ERA5_download
 
 
