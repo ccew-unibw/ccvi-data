@@ -426,7 +426,6 @@ class WorldPopData(Dataset):
                 files = self.wp_files[year]
                 year_task = progress.add_task(f"Processing {year}...", total=len(files))
                 for f in files:
-                    iso3 = f[f.rfind("/") + 1 : f.rfind("/") + 4].upper()
                     fp = self.storage.build_filepath("processing", f, filetype="")
                     da = xr.open_dataset(fp)["pop_count"]
                     max_lat = float(s_ceil(da.y.max().item()))
@@ -463,8 +462,7 @@ class WorldPopData(Dataset):
                             agg_results = {**agg_results, **temp_result}
                             da_temp.close()
                     else:
-                        if da.size < limit:
-                            da.load()
+                        da.load()
                         prefiltered_pgids = df_filter.loc[
                             (slice(min_lat, max_lat), slice(min_lon, max_lon)), "pgid"
                         ].values
@@ -484,6 +482,9 @@ class WorldPopData(Dataset):
                 )
                 progress.update(agg_task, advance=1)
                 progress.remove_task(year_task)
+        # fix issues with np.inf due to division by zero for 3 grid cells
+        # set them to zero as pop count is also zero there
+        df["pop_density"] = df["pop_density"].replace(np.inf, 0)
         self.storage.save(df, "processing", "wp_index")
         self.regenerate["preprocessing"] = False
         return df
