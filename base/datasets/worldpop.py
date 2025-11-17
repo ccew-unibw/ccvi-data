@@ -35,7 +35,7 @@ class WorldPopData(Dataset):
     Attributes:
         data_key (str): Set to "worldpop".
         local (bool): Set to False, as data is sourced via https.
-        rest_url (str): Base URL for WorldPop Rest API queries for the respective 
+        rest_url (str): Base URL for WorldPop Rest API queries for the respective
             dataset. Set to the 100m Constrained Population (R2025A v1) dataset.
         wp_files (dict[int, list[str]]): Dictionary mapping years to the list of
             corresponding WorldPop NetCDF filenames in processing storage.
@@ -69,7 +69,9 @@ class WorldPopData(Dataset):
                 "WorldPop version used only starts in 2015, earlier index start"
                 "years such as currently set require a different implementation."
             )
-            raise ValueError("Start year < 2015 not supported with WorldPop, update config or update implementation.")
+            raise ValueError(
+                "Start year < 2015 not supported with WorldPop, update config or update implementation."
+            )
         # check which years are already complete in storage
         years = np.arange(start_year, get_quarter("last").year + 1)
         self.wp_files = {
@@ -94,15 +96,15 @@ class WorldPopData(Dataset):
         response = requests.get(self.rest_url)
         wp_list = response.json()["data"]
         return wp_list
-    
+
     def _query_api_files(self) -> dict[int, list[str]]:
         """Queries WorldPop Rest API to get all files for the dataset for the required years.
-        
-        First, sends a query based on the dataset for an overview, then iterates 
+
+        First, sends a query based on the dataset for an overview, then iterates
         through all countries to get the respective file urls for download.
 
         Returns:
-            dict[int, list[str]]: dictionary with a list of urls representing all 
+            dict[int, list[str]]: dictionary with a list of urls representing all
                 available files for each year.
         """
         wp_list = self._query_api_dataset()
@@ -125,16 +127,16 @@ class WorldPopData(Dataset):
 
     def _check_files_missing(self) -> dict[int, list[str]]:
         """Queries WorldPop Rest API and compares with files in storage to determine missing files.
-        
-        First, sends a query based on the dataset for an overview, then iterates 
+
+        First, sends a query based on the dataset for an overview, then iterates
         through all countries and compares to files in storage based on `self.wp_files`.
-        
+
         Note: For each country, checks if all files for all years are in storage
         based on iso3 strings, which likely will not catch version updates. Only
         if there are any files missing, queries the API and actually comparers filenames.
 
         Returns:
-            dict[int, list[str]]: dictionary with a list of urls representing all 
+            dict[int, list[str]]: dictionary with a list of urls representing all
                 missing files per year.
         """
         wp_list = self._query_api_dataset()
@@ -150,24 +152,25 @@ class WorldPopData(Dataset):
                 continue
             response = requests.get(f"{self.rest_url}?iso3={iso3}")
             response.raise_for_status()
-            urls: dict[int, str] = {int(entry["popyear"]): entry["files"][0] for entry in response.json()["data"]}
+            urls: dict[int, str] = {
+                int(entry["popyear"]): entry["files"][0] for entry in response.json()["data"]
+            }
             for year in years:
-                filename = urls[year][urls[year].rfind("/")+1:]
+                filename = urls[year][urls[year].rfind("/") + 1 :]
                 # files are converted to .nc for compressed storage
                 if filename.replace(".tif", ".nc") not in self.wp_files[year]:
                     files_missing[year] = files_missing[year] + [urls[year]]
         return files_missing
 
-
     def load_data(self):
         """Downloads WorldPop country-level population rasters and global pixel area.
 
         Iterates through years in `self.wp_files_missing`. For each year, iterates
-        though any missing files, using `_download_worldpop_file` to download the 
+        though any missing files, using `_download_worldpop_file` to download the
         GeoTIFF, convert it to NetCDF, and store it. Updates `self.wp_files`.
         Does so after downloading the global pixel area file in the same fashion
         first, storing its path in `self.file_pixel_areas`. Sets `self.data_loaded`
-        to True upon successful completion of all downloads. Updates the global 
+        to True upon successful completion of all downloads. Updates the global
         regeneration config for the 'data' stage of 'worldpop'.
 
         This method populates the processing storage and does not return data directly.
@@ -206,7 +209,7 @@ class WorldPopData(Dataset):
                         f"[blue]Downloading {year}...", total=len(urls)
                     )
                     for url in urls:
-                        filename = url[url.rfind("/") + 1:].replace(".tif", ".nc")
+                        filename = url[url.rfind("/") + 1 :].replace(".tif", ".nc")
                         fp = self.storage.build_filepath("processing", filename, filetype="")
                         self._download_worldpop_file(url, fp)
                         self.wp_files[year].append(fp)
@@ -218,7 +221,7 @@ class WorldPopData(Dataset):
         self.regenerate["data"] = False
         return
 
-    def _download_worldpop_file(self, url: str, fp: str, layer_name: str="pop_count") -> None:
+    def _download_worldpop_file(self, url: str, fp: str, layer_name: str = "pop_count") -> None:
         """Downloads a WorldPop GeoTIFF, converts to NetCDF, and saves it.
 
         Streams the GeoTIFF from the given `url`. Saves it to a temporary local
@@ -388,10 +391,10 @@ class WorldPopData(Dataset):
 
         Checks for and loads existing cached yearly aggregates ('wp_index.parquet')
         through `_prep_base_df()`. Also loads grid cell land areas via
-        `load_worldpop_areas()`. Unless full regeneration is desired 
+        `load_worldpop_areas()`. Unless full regeneration is desired
         (self.regenerate["processing"] = True), iterates through missing years
-        and sums population counts per grid cell. Then calculates population 
-        density based on the land areas. Saves the yearly aggregated DataFrame 
+        and sums population counts per grid cell. Then calculates population
+        density based on the land areas. Saves the yearly aggregated DataFrame
         as `wp_index.parquet` and updates global regenerate settings.
 
         Args:
@@ -467,10 +470,7 @@ class WorldPopData(Dataset):
                             (slice(min_lat, max_lat), slice(min_lon, max_lon)), "pgid"
                         ].values
 
-                        agg_results = {
-                            pgid: aggregate_cell(pgid, da)
-                            for pgid in prefiltered_pgids
-                        }
+                        agg_results = {pgid: aggregate_cell(pgid, da) for pgid in prefiltered_pgids}
                     da.close()
                     for pgid in agg_results:
                         df.at[(pgid, year), "pop_count"] += agg_results[pgid]
@@ -533,6 +533,7 @@ class WorldPopData(Dataset):
         # set NA to 0 for future aggregation
         df["pop_count"] = df.pop_count.apply(lambda x: 0 if pd.isna(x) else x)
         return df.sort_index(), years
+
 
 if __name__ == "__main__":
     config = ConfigParser()
