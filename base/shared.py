@@ -65,9 +65,9 @@ class ExposureDimension(Dimension):
         self.grid = grid
         self.wp = WorldPopData(config=self.config)
         self.exposure_filename = "exposure"
-        self.regenerate_exposure = self.config.get_regeneration_config(self.exposure_filename)[
-            "preprocessing"
-        ]
+        self.regenerate_exposure = self.config.get_regeneration_config(
+            self.exposure_filename, ["preprocessing"]
+        )["preprocessing"]
         self.exposure_generated = self.storage.check_component_generated(
             filename=self.exposure_filename
         )
