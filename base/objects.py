@@ -289,27 +289,27 @@ class StorageManager:
     def _setup_storage_paths(self, processing_folder: str | None) -> dict[str, str]:
         """Setup the storage paths based on a base_path.
 
-        Creates 'input', 'processing', and 'output' subdirectories within the
-        specified `storage_folder` if they don't exist, and returns the paths
-        as dictionary. If `processing folder` is not None, the corresponding
-        subdirectory will also be created.
-        Updates self.storage_paths["processing"] with the composite_id as a subfolder
-        and creates the folder if `self.requires_processing_storage` = True.
-
+        Creates 'input', and 'output' subdirectories within the specified 
+        `storage_folder` if they don't exist. If `self.requires_processing_storage=True`,
+        also creates a 'processing' folder and instance-specific subdirectory. 
+        Ignores existing folders and returns all paths as dictionary.
+        
         Args:
             base_path (str): The storage root directory.
 
         Returns:
             dict[str, str]: A dictionary mapping 'input', 'processing', 'output'
-                to their created directory paths.
+                to their created directory paths as created.
         """
         storage = {}
         for stage in ["input", "processing", "output"]:
             path = os.path.join(self.storage_base_path, stage)
-            if stage == "processing" and processing_folder is not None:
-                path = os.path.join(path, processing_folder)
-            if stage == "processing" and not self.requires_processing_storage:
-                continue
+            if stage == "processing":
+                if self.requires_processing_storage:
+                    assert processing_folder is not None
+                    path = os.path.join(path, processing_folder)
+                else:
+                    continue
             os.makedirs(path, exist_ok=True)
             storage[stage] = path
     
@@ -438,7 +438,13 @@ class StorageManager:
         Returns:
             str: The constructed filepath.
         """
-        path = self.storage_paths[mode]
+        try:
+            path = self.storage_paths[mode]
+        except KeyError:
+            if mode == "processing" and self.requires_processing_storage:
+                raise ValueError("Mode 'processing' not available as 'requires_processing_storage for this instance is False.")
+            else:
+                raise
         if filename is None:
             try:
                 filename = self.composite_id
