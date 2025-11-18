@@ -20,7 +20,7 @@ warnings.filterwarnings("ignore")
 
 
 from base.objects import Dataset, console
-from utils.index import get_quarter
+from utils.data_processing import get_quarter
 
 
 allJobsDone = False

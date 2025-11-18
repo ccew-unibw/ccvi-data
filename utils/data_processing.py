@@ -1,11 +1,13 @@
 from collections.abc import Generator, Iterable
 from datetime import date
+import math
 from typing import Literal
 
-from panel_imputer import PanelImputer
 import country_converter as coco
 import numpy as np
 import pandas as pd
+from panel_imputer import PanelImputer
+import pendulum
 
 
 def add_time(df: pd.DataFrame) -> pd.DataFrame:
@@ -129,6 +131,32 @@ def process_yearly_data(
     return df_out
 
 
+def winsorization_normalization(
+    data: pd.Series,
+    limits: tuple[float, float] | None = None,
+    ignore_zeroes_limit: bool = False,
+    fixed_limits: bool = False,
+) -> pd.Series:
+    """
+    Normalizes a pandas series to values between 0 and 1 with optional winsorization.
+    """
+    if limits is None:
+        return min_max_scaling(data)
+    else:
+        assert len(limits) == 2
+
+    if fixed_limits:
+        minv, maxv = limits[0], limits[1]
+    else:
+        if ignore_zeroes_limit:
+            limits = np.nanquantile(data[data != 0], limits)
+        else:
+            limits = np.nanquantile(data, limits)
+        minv, maxv = limits[0], limits[1]  # type: ignore
+
+    return min_max_scaling(data, minv=minv, maxv=maxv)
+
+
 def min_max_scaling(
     series: pd.Series, minv: float | None = None, maxv: float | None = None
 ) -> pd.Series:
@@ -173,3 +201,36 @@ def slice_tuples(arr_x: np.ndarray, arr_y: np.ndarray) -> Generator[tuple[int, i
     for i in range(len(arr_x)):
         for j in range(len(arr_y)):
             yield i, j
+
+
+def get_quarter(which: str | int = "current", bounds: Literal["start", "end"] = "start") -> date:
+    """
+    Return the beginning date or end date of today's quarter as a date object.
+    """
+    d = date.today()
+    # beginning of current quarter
+    month_begin = math.ceil(d.month / 3) * 3 - 2
+    dt_begin = date(d.year, month_begin, 1)
+
+    if which == "current":
+        offset = 0
+    elif which == "last":
+        offset = -1
+    else:
+        try:
+            offset = int(which)
+        except Exception:
+            raise ValueError(
+                'Argument "which" needs to be one of "current", "last", or convertible to int.'
+            )
+    # add offset
+    pend_begin = pendulum.parse(dt_begin.isoformat())
+    pend_modified = pend_begin.add(months=3 * offset)  # type: ignore
+
+    if bounds == "start":
+        return date(pend_modified.year, pend_modified.month, pend_modified.day)
+    elif bounds == "end":
+        pend_end = pend_modified.add(months=3).subtract(days=1)
+        return date(pend_end.year, pend_end.month, pend_end.day)
+    else:
+        raise ValueError(f'Argument "bounds" needs to be in ["start", "end"], got {bounds}.')

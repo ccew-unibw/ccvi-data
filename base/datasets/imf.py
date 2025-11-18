@@ -51,7 +51,7 @@ class IMFGDPData(Dataset):
         """Preprocesses the downloaded IMF data.
 
         This method adds country information via the IMF API for debugging,
-        standardizes the ISO3 code to the ones used in the index, performes some 
+        standardizes the ISO3 code to the ones used in the index, performes some
         cleaning droping aggregates, and matches data to a standardized
         country-year panel.
 

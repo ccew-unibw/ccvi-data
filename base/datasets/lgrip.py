@@ -8,7 +8,7 @@ from rich.progress import Progress
 import rioxarray as rxr
 
 from base.objects import Dataset, ConfigParser, GlobalBaseGrid
-from utils.spatial_operations import pgid_to_coords
+from utils.conversions import pgid_to_coords
 
 
 class LGRIPData(Dataset):

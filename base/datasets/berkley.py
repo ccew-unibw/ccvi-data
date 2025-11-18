@@ -9,8 +9,8 @@ from datetime import date
 import xarray as xr
 
 from base.objects import Dataset
-from utils.index import get_quarter
-from utils.spatial_operations import coords_to_pgid
+from utils.data_processing import get_quarter
+from utils.conversions import coords_to_pgid
 
 
 class BERKLEYData(Dataset):

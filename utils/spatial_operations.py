@@ -12,37 +12,6 @@ import shapely
 from tqdm import tqdm
 
 
-def add_lat_lon(df) -> pd.DataFrame:
-    """
-    Adds lat and lon coordinates to a given dataframe with a "pgid" column.
-    """
-    assert "pgid" in df.columns, "DatFrame must have a 'pgid' column for merging."
-    base_grid = pd.read_parquet("output/geo/base_grid_prio.parquet")
-    return df.merge(base_grid[["lat", "lon"]], on="pgid", how="left")
-
-
-@cache
-def pgid_to_coords(id: int) -> tuple[float, float]:
-    """
-    Converts PRIO-GRID cell id to cell center lat/lon coordinates.
-    """
-    id -= 1
-    lat = math.floor(id / 720) / 2 - 89.75
-    lon = id % 720 / 2 - 179.75
-    return lat, lon
-
-
-@cache
-def coords_to_pgid(lat: float, lon: float) -> int:
-    """
-    Converts cell center lat/lon coordinates to PRIO-GRID cell id.
-    """
-    row = (lat + 90.25) * 2
-    col = (lon + 180.25) * 2
-    pgid = (row - 1) * 720 + col
-    return int(pgid)
-
-
 def round_grid(x, s=0.5) -> float:
     """
     Round coordinate to nearest s°*s° grid cell centroid coordinate.
@@ -279,8 +248,8 @@ def assign_areas_to_grid(
         grid (gpd.GeoDataFrame): Input GeoDataFrame of grid cells. If
             `performance=False`, it expects 'lat' and 'lon' columns representing
             grid cell centers (used for the reprojection to calculate areas).
-        areas_in (str | gpd.GeoDataFrame): Filepath to the vector file 
-            (e.g., shapefile, GeoPackage) or GeoDataFrame containing the area 
+        areas_in (str | gpd.GeoDataFrame): Filepath to the vector file
+            (e.g., shapefile, GeoPackage) or GeoDataFrame containing the area
             polygons. Expected to be in EPSG:4326.
         grid_col (str): The name of the new column to be created in the `grid`
             GeoDataFrame, which will store the assigned area identifier(s).

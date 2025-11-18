@@ -15,13 +15,14 @@ from tqdm import tqdm
 import yaml
 
 
+from utils.conversions import coords_to_pgid
 from utils.data_processing import (
     add_time,
     min_max_scaling,
     create_custom_data_structure,
+    get_quarter,
 )
-from utils.index import get_quarter
-from utils.spatial_operations import coords_to_pgid, s_ceil, s_floor
+from utils.spatial_operations import s_ceil, s_floor
 
 console = Console(force_terminal=True, force_interactive=True)
 
@@ -155,8 +156,8 @@ class ConfigParser:
                 class. May only contain 'indicator', 'data', and 'preprocessing'.
 
         Returns:
-            dict[str, bool]: A dictionary with keys 'keys', where each value is 
-                a boolean indicating whether that stage should be regenerated 
+            dict[str, bool]: A dictionary with keys 'keys', where each value is
+                a boolean indicating whether that stage should be regenerated
                 for the given `id`. Note that this is a reference to the object
                 stored in the ConfigParser instance.
         """
@@ -167,7 +168,9 @@ class ConfigParser:
             "Regenerate keys do not match requirements. Check for missing keys."
             f"\nRequired: {regenerate_config_keys}."
         )
-        assert all(key in regenerate_config_keys for key in keys), f"'keys' list can only contain {regenerate_config_keys}."
+        assert all(key in regenerate_config_keys for key in keys), (
+            f"'keys' list can only contain {regenerate_config_keys}."
+        )
         if id not in self.regeneration_configs_dict:
             regeneration_config_id = {}
             for key in regeneration_config:
@@ -244,7 +247,7 @@ class StorageManager:
         storage_base_path: str,
         requires_processing_storage: bool = False,
         processing_folder: str | None = None,
-        composite_id: str | None = None
+        composite_id: str | None = None,
     ):
         """Initializes the StorageManager and sets up directories.
 
@@ -266,8 +269,8 @@ class StorageManager:
         self.requires_processing_storage = requires_processing_storage
         if requires_processing_storage:
             assert processing_folder or composite_id, (
-                "Processing folder requirement indicated, please provide a 'processing_folder'." +
-                "or a 'composite_id."
+                "Processing folder requirement indicated, please provide a 'processing_folder'."
+                + "or a 'composite_id."
             )
         if not self.requires_processing_storage and processing_folder is not None:
             processing_folder = None
@@ -279,11 +282,11 @@ class StorageManager:
             self.composite_id = composite_id
             if processing_folder and processing_folder != composite_id:
                 self.console.print(
-                    "Different 'processing_folder' and 'composite_id' provided, using composite_id"+
-                    " as processing folder."
+                    "Different 'processing_folder' and 'composite_id' provided, using composite_id"
+                    + " as processing folder."
                 )
             processing_folder = composite_id
-            
+
         self.storage_paths = self._setup_storage_paths(processing_folder)
 
     def _setup_storage_paths(self, processing_folder: str | None) -> dict[str, str]:
@@ -312,7 +315,7 @@ class StorageManager:
                     continue
             os.makedirs(path, exist_ok=True)
             storage[stage] = path
-    
+
         return storage
 
     def save(
@@ -460,8 +463,10 @@ class StorageManager:
             fp = os.path.join(path, f"{filename}{filetype}")
         return fp
 
+
 class CompositeIDMixin:
     """Shared Mixin class handling the composite ID logic for index components."""
+
     def get_composite_id(
         self,
         pillar: str,
@@ -560,7 +565,9 @@ class GlobalBaseGrid:
         """
         self.global_config = config.get_global_config()
         self.config = config.get_data_config(["countries", "land_mask", "inland_water_mask"])
-        self.regenerate = config.get_regeneration_config("base_grid", ["preprocessing"])["preprocessing"]
+        self.regenerate = config.get_regeneration_config("base_grid", ["preprocessing"])[
+            "preprocessing"
+        ]
         self.storage = StorageManager(
             storage_base_path=self.global_config["storage_path"],
             requires_processing_storage=True,
@@ -943,12 +950,14 @@ class Indicator(ABC, CompositeIDMixin):
         self.storage = StorageManager(
             storage_base_path=self.global_config["storage_path"],
             requires_processing_storage=self.requires_processing_storage,
-            composite_id=self.composite_id
+            composite_id=self.composite_id,
         )
         self.generated = self.storage.check_component_generated()
 
         # add regenerate config
-        self.regenerate = config.get_regeneration_config(self.composite_id, ["indicator", "preprocessing"])
+        self.regenerate = config.get_regeneration_config(
+            self.composite_id, ["indicator", "preprocessing"]
+        )
         # this allows acces to load the grid for data structures
         self.grid = grid
 
@@ -1151,8 +1160,8 @@ class AggregateScore:
         but not allowed for Pillars, Risk scores, or the CCVI score.
 
         Args:
-            df (pd.DataFrame): DataFrame containing ONLY the component scores to 
-                be aggregated. Columns should correspond to component IDs 
+            df (pd.DataFrame): DataFrame containing ONLY the component scores to
+                be aggregated. Columns should correspond to component IDs
                 ('_exposure' suffixes are also allowed).
             id (str): The composite ID of the aggregate score.
             aggregation_config (dict[str, Any]): A dictionary specifying the
@@ -1163,7 +1172,7 @@ class AggregateScore:
         Returns:
             pd.DataFrame: A DataFrame with a single column containing the aggregate
                 scores.
-        """        
+        """
         # output dataframe
         df_aggregated = pd.DataFrame(index=df.index, columns=[id])
         # rename if columns are exposure versions to make the logic below consistent
@@ -1337,7 +1346,7 @@ class Dimension(AggregateScore, CompositeIDMixin):
         self.storage = StorageManager(
             storage_base_path=self.global_config["storage_path"],
             requires_processing_storage=self.requires_processing_storage,
-            composite_id= self.composite_id
+            composite_id=self.composite_id,
         )
         self.generated = False
 
@@ -1505,7 +1514,7 @@ class Pillar(AggregateScore, CompositeIDMixin):
         self.storage = StorageManager(
             storage_base_path=self.global_config["storage_path"],
             requires_processing_storage=self.requires_processing_storage,
-            composite_id=self.composite_id
+            composite_id=self.composite_id,
         )
         self.generated = False
 

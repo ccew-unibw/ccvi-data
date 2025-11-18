@@ -14,9 +14,9 @@ import rioxarray as rxr
 import xarray as xr
 
 from base.objects import ConfigParser, Dataset, GlobalBaseGrid
-from utils.data_processing import create_custom_data_structure
-from utils.index import get_quarter
-from utils.spatial_operations import coords_to_pgid, s_ceil, s_floor
+from utils.conversions import coords_to_pgid
+from utils.data_processing import create_custom_data_structure, get_quarter
+from utils.spatial_operations import s_ceil, s_floor
 
 
 class NTLDataError(Exception):

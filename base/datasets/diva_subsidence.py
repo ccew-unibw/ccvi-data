@@ -5,7 +5,7 @@ import geopandas as gpd
 from shapely.geometry import Polygon
 
 from base.objects import Dataset, console
-from utils.index import get_quarter
+from utils.data_processing import get_quarter
 
 
 def download_data_publication(output_path):

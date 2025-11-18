@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from utils.index import get_quarter
+from utils.data_processing import get_quarter
 
 from base.datasets.ecmwf_spei import CDSECMWFSPEIData
 from base.objects import Indicator, ConfigParser, GlobalBaseGrid

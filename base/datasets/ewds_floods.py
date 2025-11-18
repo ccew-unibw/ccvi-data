@@ -3,7 +3,7 @@ import os
 import pandas as pd
 
 from base.objects import Dataset, console
-from utils.index import get_quarter
+from utils.data_processing import get_quarter
 
 
 def to_bin(x):

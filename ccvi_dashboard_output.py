@@ -28,7 +28,7 @@ from base.objects import (
     Dimension,
     Pillar,
 )
-from utils.index import get_quarter
+from utils.data_processing import get_quarter
 
 # load initialized components
 import ccvi
@@ -250,7 +250,7 @@ class CCVIWrapper:
         Loads all preprocessed components from "tool" output subfolder, loads
         risk scores, combines both. Also loads data recency and grid and stores
         everything
-        
+
         Args:
             skip_vul_raw (bool, optional): Flag to indicate whether to skip
                 (down)loading the country-level raw vulnerability data if a
@@ -281,7 +281,12 @@ class CCVIWrapper:
         self.ccvi.storage.save(df_exp, filename="exposure_layers", subfolder=subfolder)
         # vulnerability country data - separate loading function
         # optionally skip if flag is set and file exists
-        if not (skip_vul_raw and os.path.exists(self.ccvi.storage.build_filepath("output", "vul_country_raw", subfolder))):
+        if not (
+            skip_vul_raw
+            and os.path.exists(
+                self.ccvi.storage.build_filepath("output", "vul_country_raw", subfolder)
+            )
+        ):
             df_vul_country = get_vul_country_data()
             self.ccvi.storage.save(df_vul_country, filename="vul_country_raw", subfolder=subfolder)
         # send to S3

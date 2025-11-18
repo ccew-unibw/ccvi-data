@@ -1,5 +1,5 @@
 import pandas as pd
-from utils.index import get_quarter
+from utils.data_processing import get_quarter
 
 from base.datasets.diva_subsidence import DIVASubsidenceData
 from base.objects import Indicator, ConfigParser, GlobalBaseGrid

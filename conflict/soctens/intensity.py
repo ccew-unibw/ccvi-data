@@ -57,7 +57,7 @@ class ConSoctensIntensity(Indicator, NormalizationMixin):
         quantile = self.indicator_config["normalization_quantile"]
         start_year = self.global_config["start_year"]
         return self.conflict_normalize(df_indicator, self.composite_id, quantile, start_year)
-    
+
     def add_raw_value(
         self, df_indicator: pd.DataFrame, df_preprocessed: pd.DataFrame
     ) -> pd.DataFrame:

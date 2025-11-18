@@ -11,7 +11,7 @@ import pandas as pd
 import xarray as xr
 
 from base.objects import Dataset, ConfigParser
-from utils.index import get_quarter
+from utils.data_processing import get_quarter
 from utils.gee import GEEClient
 
 

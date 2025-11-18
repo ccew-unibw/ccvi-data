@@ -4,8 +4,7 @@ import requests
 import pandas as pd
 
 from base.objects import Dataset
-from utils.data_processing import make_iso3_column
-from utils.index import get_quarter
+from utils.data_processing import make_iso3_column, get_quarter
 
 
 class SDGData(Dataset):

@@ -1,5 +1,5 @@
 import pandas as pd
-from utils.index import get_quarter
+from utils.data_processing import get_quarter
 
 from base.datasets.ibtrak_cyclones import IBTRAKData
 from base.objects import Indicator, ConfigParser, GlobalBaseGrid

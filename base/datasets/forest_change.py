@@ -7,7 +7,8 @@ import boto3
 import botocore
 
 from base.objects import ConfigParser, Dataset, GlobalBaseGrid
-from utils.spatial_operations import pgid_to_coords, s_ceil, s_floor
+from utils.conversions import pgid_to_coords
+from utils.spatial_operations import s_ceil, s_floor
 
 
 class GFCData(Dataset):

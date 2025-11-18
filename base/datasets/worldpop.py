@@ -13,14 +13,14 @@ from tqdm import tqdm
 import xarray as xr
 
 from base.objects import Dataset, GlobalBaseGrid, ConfigParser
-from base.datasets.wpp import WPPData
+from utils.conversions import pgid_to_coords
 from utils.data_processing import create_custom_data_structure, slice_tuples
-from utils.index import get_quarter
-from utils.spatial_operations import pgid_to_coords, s_ceil, s_floor
+from utils.data_processing import get_quarter
+from utils.spatial_operations import s_ceil, s_floor
 
 
 class WorldPopData(Dataset):
-    """Handles downloading and preprocessing of WorldPop population data.
+    """Handles downloading and preprocessing of WorldPop population data (R2025A v1).
 
     Implements `load_data()` to download annual country-level population GeoTIFFs
     from the WorldPop hub and a global pixel area raster, storing them as
@@ -28,24 +28,19 @@ class WorldPopData(Dataset):
     Implements `load_worldpop_areas()` to calculate grid cell areas based on the
     pixel values, caching the result.
     Implements `process_yearly_grid_aggregates()` to aggregate the downloaded
-    country-level population counts to the grid. This includes adjustment to UN
-    estimates and extrapolating population for recent years using UN WPP's
-    estimated growth rates.
-    Implements `prep_scale_factors()` to calculate a set of multipliers to apply
-    to countryies' WorldPop layers to adjust to UN estimates and (past 2020)
-    extrapolate with WPP growth estimates.
+    country-level population counts to the grid.
     Implements `get_quarterly_interpolations()` to interpolate the annual gridded
     population counts to a quarterly frequency.
-
-    The class relies on an instance of `WPPData` for UN WPP figures used for
-    country-level adjustments and extrapolation.
 
     Attributes:
         data_key (str): Set to "worldpop".
         local (bool): Set to False, as data is sourced via https.
-        wpp (WPPData): An instance of WPPData for accessing UN population figures.
+        rest_url (str): Base URL for WorldPop Rest API queries for the respective
+            dataset. Set to the 100m Constrained Population (R2025A v1) dataset.
         wp_files (dict[int, list[str]]): Dictionary mapping years to the list of
             corresponding WorldPop NetCDF filenames in processing storage.
+        wp_files_missing(dict[int, list[str]]): Dictionary with urls for all
+            "missing" files to be downloaded (again) during `load_data()`.
         data_loaded (bool): Flag indicating whether all available data is downloaded.
             Checked at the start of preprocessing.
         file_pixel_areas (str | None): Filepath to the cached NetCDF of global
@@ -55,6 +50,7 @@ class WorldPopData(Dataset):
 
     data_key: str = "worldpop"
     local: bool = False
+    rest_url: str = "https://hub.worldpop.org/rest/data/pop/G2_CN_POP_R25A_100m"
 
     def __init__(self, config: ConfigParser):
         """Initializes WorldPopData.
@@ -66,75 +62,120 @@ class WorldPopData(Dataset):
             config (ConfigParser): An initialized ConfigParser instance.
         """
         super().__init__(config=config)
-        # wpp instance to
-        self.wpp = WPPData(config=config)
+        # implementation for WorldPop 2015-2030 version R2025A v1
+        start_year = self.global_config["start_year"]
+        if start_year < 2015:
+            self.console.print(
+                "WorldPop version used only starts in 2015, earlier index start"
+                "years such as currently set require a different implementation."
+            )
+            raise ValueError(
+                "Start year < 2015 not supported with WorldPop, update config or update implementation."
+            )
         # check which years are already complete in storage
-        # worldpop currently ends with 2020
-        years = np.arange(self.global_config["start_year"], 2021)
+        years = np.arange(start_year, get_quarter("last").year + 1)
         self.wp_files = {
             year: [
                 f
                 for f in sorted(os.listdir(self.storage.storage_paths["processing"]))
-                if f.endswith(".nc") and str(year) in f
+                if f.endswith(".nc") and f"_{year}_" in f
             ]
             for year in years
         }
         if self.regenerate["data"]:
             self.wp_files = {year: [] for year in years}
-            all_available = self._check_files_available()
-            self.wp_files_missing = {
-                year: [f.replace(".tif", ".nc") for f in all_available[year]] for year in years
-            }
+            files_available = self._query_api_files()
+            self.wp_files_missing = files_available
         else:
             self.wp_files_missing = self._check_files_missing()
         self.data_loaded = False
         self.file_pixel_areas = None
 
-    @staticmethod
-    def _query_available():
-        url = "https://hub.worldpop.org/rest/data/pop/wpgp"
-        response = requests.get(url)
+    def _query_api_dataset(self) -> list[dict[str, str]]:
+        """Queries WorldPop Rest API for all available entries from the dataset."""
+        response = requests.get(self.rest_url)
         wp_list = response.json()["data"]
         return wp_list
 
-    def _check_files_missing(self) -> dict[int, list[str]]:
-        wp_list = self._query_available()
-        files_missing = {}
-        for year in self.wp_files:
-            # entries should cover the same scope for all years!
-            entries = [e for e in wp_list if e["popyear"] == str(year)]
-            iso3s = sorted([e["iso3"] for e in entries])
-            filenames = [f"{iso3.lower()}_ppp_{year}.nc" for iso3 in iso3s]
-            files_missing[year] = [f for f in filenames if f not in self.wp_files[year]]
-        return files_missing
+    def _query_api_files(self) -> dict[int, list[str]]:
+        """Queries WorldPop Rest API to get all files for the dataset for the required years.
 
-    def _check_files_available(self) -> dict[int, list[str]]:
-        wp_list = self._query_available()
-        files_available = {}
-        for year in self.wp_files:
-            # entries should cover the same scope for all years!
-            entries = [e for e in wp_list if e["popyear"] == str(year)]
-            iso3s = sorted([e["iso3"] for e in entries])
-            files_available[year] = [f"{iso3.lower()}_ppp_{year}.tif" for iso3 in iso3s]
-        return files_available
+        First, sends a query based on the dataset for an overview, then iterates
+        through all countries to get the respective file urls for download.
+
+        Returns:
+            dict[int, list[str]]: dictionary with a list of urls representing all
+                available files for each year.
+        """
+        wp_list = self._query_api_dataset()
+        years = sorted(self.wp_files.keys())
+        available_files = {year: [] for year in years}
+        # entries should cover the same scope for all years
+        yearly_entries = [e for e in wp_list if e["popyear"] == str(years[0])]
+        iso3s = sorted([e["iso3"] for e in yearly_entries])
+        # need to iterate through countries instead of years since that is the only way to get urls from the API
+        for iso3 in iso3s:
+            response = requests.get(f"{self.rest_url}?iso3={iso3}")
+            response.raise_for_status()
+            for entry in response.json()["data"]:
+                year = int(entry["popyear"])
+                if year not in years:
+                    continue
+                file_url = entry["files"][0]
+                available_files[year] = available_files[year] + [file_url]
+        return available_files
+
+    def _check_files_missing(self) -> dict[int, list[str]]:
+        """Queries WorldPop Rest API and compares with files in storage to determine missing files.
+
+        First, sends a query based on the dataset for an overview, then iterates
+        through all countries and compares to files in storage based on `self.wp_files`.
+
+        Note: For each country, checks if all files for all years are in storage
+        based on iso3 strings, which likely will not catch version updates. Only
+        if there are any files missing, queries the API and actually comparers filenames.
+
+        Returns:
+            dict[int, list[str]]: dictionary with a list of urls representing all
+                missing files per year.
+        """
+        wp_list = self._query_api_dataset()
+        years = sorted(self.wp_files.keys())
+        files_missing = {year: [] for year in years}
+        # entries should cover the same scope for all years
+        yearly_entries = [e for e in wp_list if e["popyear"] == str(years[0])]
+        iso3s = sorted([e["iso3"] for e in yearly_entries])
+        for iso3 in iso3s:
+            # avoid API calls - if the iso3s are there do not check for matching names
+            # will likely not fail if the version is updated and old files are around without updating the files in storage
+            if all(f"{iso3.lower()}_" in self.wp_files[year] for year in self.wp_files):
+                continue
+            response = requests.get(f"{self.rest_url}?iso3={iso3}")
+            response.raise_for_status()
+            urls: dict[int, str] = {
+                int(entry["popyear"]): entry["files"][0] for entry in response.json()["data"]
+            }
+            for year in years:
+                filename = urls[year][urls[year].rfind("/") + 1 :]
+                # files are converted to .nc for compressed storage
+                if filename.replace(".tif", ".nc") not in self.wp_files[year]:
+                    files_missing[year] = files_missing[year] + [urls[year]]
+        return files_missing
 
     def load_data(self):
         """Downloads WorldPop country-level population rasters and global pixel area.
 
-        Iterates through years from the configured `start_year` to 2020. For each year:
-        1. Fetches a list of available country datasets from the WorldPop API.
-        2. For each country, constructs the download URL for its population GeoTIFF.
-        3. Calls `_download_worldpop_file` to download the GeoTIFF, convert it to
-           NetCDF, and store it, skipping if the NetCDF already exists and
-           regeneration is not forced. Updates `self.wp_files`.
-        After processing all years, downloads the global pixel area GeoTIFF,
-        converts it to NetCDF, and stores its path in `self.file_pixel_areas`.
-        Sets `self.data_loaded` to True upon successful completion of all downloads.
-        Updates the global regeneration config for the 'data' stage of 'worldpop'.
+        Iterates through years in `self.wp_files_missing`. For each year, iterates
+        though any missing files, using `_download_worldpop_file` to download the
+        GeoTIFF, convert it to NetCDF, and store it. Updates `self.wp_files`.
+        Does so after downloading the global pixel area file in the same fashion
+        first, storing its path in `self.file_pixel_areas`. Sets `self.data_loaded`
+        to True upon successful completion of all downloads. Updates the global
+        regeneration config for the 'data' stage of 'worldpop'.
 
         This method populates the processing storage and does not return data directly.
         """
-        # Start wiuth land areas since this is outside the other logic
+        # Start with land areas since this is outside the other logic
         url = "https://data.worldpop.org/GIS/Pixel_area/Global_2000_2020/0_Mosaicked/global_px_area_1km.tif"
         filename = url[url.rfind("/") + 1 :].replace(".tif", ".nc")
         fp = self.storage.build_filepath("processing", filename, filetype="")
@@ -163,14 +204,13 @@ class WorldPopData(Dataset):
             with Progress(console=self.console) as progress:
                 task_download = progress.add_task("[yellow]Downloading WorldPop ...", total=missing)
                 for year in self.wp_files_missing:
-                    filenames = [f for f in self.wp_files_missing[year]]
+                    urls = [f for f in self.wp_files_missing[year]]
                     task_download_year = progress.add_task(
-                        f"[blue]Downloading {year}...", total=len(filenames)
+                        f"[blue]Downloading {year}...", total=len(urls)
                     )
-                    for f in filenames:
-                        iso3 = f[: f.find("_")].upper()
-                        url = f"https://data.worldpop.org/GIS/Population/Global_2000_2020/{year}/{iso3}/{f.replace('.nc', '.tif')}"
-                        fp = self.storage.build_filepath("processing", f, filetype="")
+                    for url in urls:
+                        filename = url[url.rfind("/") + 1 :].replace(".tif", ".nc")
+                        fp = self.storage.build_filepath("processing", filename, filetype="")
                         self._download_worldpop_file(url, fp)
                         self.wp_files[year].append(fp)
                         progress.update(task_download_year, advance=1)
@@ -181,7 +221,7 @@ class WorldPopData(Dataset):
         self.regenerate["data"] = False
         return
 
-    def _download_worldpop_file(self, url, fp, layer_name="pop_count") -> None:
+    def _download_worldpop_file(self, url: str, fp: str, layer_name: str = "pop_count") -> None:
         """Downloads a WorldPop GeoTIFF, converts to NetCDF, and saves it.
 
         Streams the GeoTIFF from the given `url`. Saves it to a temporary local
@@ -192,11 +232,12 @@ class WorldPopData(Dataset):
 
         Args:
             url (str): The URL of the WorldPop GeoTIFF file to download.
-            fp (str): The local filepath for storing the data.
+            fp (str): The local filepath for storing the data. Expects '.nc' suffix.
             layer_name (str, optional): The name to assign to data layer.
                 Defaults to "pop_count".
 
         """
+        assert fp.endswith(".nc"), "'.nc' filetype expected for storage."
         response = requests.get(url, stream=True)
         response.raise_for_status()  # we want an error if download doesnt work
         with tempfile.NamedTemporaryFile("wb", suffix=".tif", delete=False) as f:
@@ -350,16 +391,11 @@ class WorldPopData(Dataset):
 
         Checks for and loads existing cached yearly aggregates ('wp_index.parquet')
         through `_prep_base_df()`. Also loads grid cell land areas via
-        `load_worldpop_areas()` and UN WPP data through `self.wpp`. Unless full
-        regeneration is desired (self.regenerate["processing"] = True), iterates
-        through missing years, calculates a scaling factor adjusting the data to
-        UN WPP estimates and potentially extrapolating the population counts
-        based on country-level UN WPP growth estimates (after 2020, no WorldPop
-        data), and sums population counts per grid cell. Scale factors for
-        adjusting/extrapolating are generated/ loaded via `prep_scale_factors()`.
-        Calculates population density based on the land areas. Saves the yearly
-        aggregated DataFrame as `wp_index.parquet` and updated global regenerate
-        settings.
+        `load_worldpop_areas()`. Unless full regeneration is desired
+        (self.regenerate["processing"] = True), iterates through missing years
+        and sums population counts per grid cell. Then calculates population
+        density based on the land areas. Saves the yearly aggregated DataFrame
+        as `wp_index.parquet` and updates global regenerate settings.
 
         Args:
             grid (GlobalBaseGrid): The initialized GlobalBaseGrid instance.
@@ -369,14 +405,14 @@ class WorldPopData(Dataset):
                 'pop_count', 'pop_density', and 'land_area' columns.
         """
 
-        def aggregate_cell(pgid: int, adjustment_factor: float, da: xr.DataArray) -> float:
+        def aggregate_cell(pgid: int, da: xr.DataArray) -> float:
             """Helper function to calculate pixel sums within single grid cells."""
             lat, lon = pgid_to_coords(pgid)
             cell = da.sel(x=slice(lon - 0.25, lon + 0.25), y=slice(lat + 0.25, lat - 0.25))
             if np.isnan(cell).all():
                 return 0
             else:
-                agg = cell.sum().item() * adjustment_factor
+                agg = cell.sum().item()
                 return agg
 
         land_areas = self.load_worldpop_areas(grid)
@@ -385,31 +421,20 @@ class WorldPopData(Dataset):
         if len(years) == 0:
             return df
 
-        df_wpp = self.wpp.load_data()
-        df_wpp = self.wpp.preprocess_wpp(df_wpp)
-        df_wpp = df_wpp.reset_index()
-        df_wpp["iso3"] = df_wpp["iso3"].str.replace("XKX", "KOS")
-        df_wpp = df_wpp.set_index(["iso3", "year"]).sort_index()
-        scale_factors = self.prep_scale_factors(df_wpp)
         # reshape grid-based land areas for use to pre-filter pgids
         df_filter = land_areas.reset_index().set_index(["lat", "lon"]).sort_index()[["pgid"]]
         with Progress(console=self.console) as progress:
             agg_task = progress.add_task("Aggregating WorldPop to grid...", total=len(years))
             for year in years:
-                if year <= 2020:
-                    files = self.wp_files[year]
-                else:  # year > 2020 (max_year)
-                    files = self.wp_files[2020]
+                files = self.wp_files[year]
                 year_task = progress.add_task(f"Processing {year}...", total=len(files))
                 for f in files:
-                    iso3 = f[f.rfind("/") + 1 : f.rfind("/") + 4].upper()
                     fp = self.storage.build_filepath("processing", f, filetype="")
                     da = xr.open_dataset(fp)["pop_count"]
                     max_lat = float(s_ceil(da.y.max().item()))
                     max_lon = float(s_ceil(da.x.max().item()))
                     min_lat = float(s_floor(da.y.min().item()))
                     min_lon = float(s_floor(da.x.min().item()))
-                    scale_factor = scale_factors[year][iso3]
                     # 300.000.000 limits to < 64 GB RAM - can be adjusted depending on the available resources.
                     # Chunking is only really essential for files covering large NA areas like RUS and USA
                     limit = 300000000
@@ -434,22 +459,18 @@ class WorldPopData(Dataset):
                                 temp_result = {pgid: 0 for pgid in prefiltered_pgids}
                             else:
                                 temp_result = {
-                                    pgid: aggregate_cell(pgid, scale_factor, da_temp)
+                                    pgid: aggregate_cell(pgid, da_temp)
                                     for pgid in prefiltered_pgids
                                 }
                             agg_results = {**agg_results, **temp_result}
                             da_temp.close()
                     else:
-                        if da.size < limit:
-                            da.load()
+                        da.load()
                         prefiltered_pgids = df_filter.loc[
                             (slice(min_lat, max_lat), slice(min_lon, max_lon)), "pgid"
                         ].values
 
-                        agg_results = {
-                            pgid: aggregate_cell(pgid, scale_factor, da)
-                            for pgid in prefiltered_pgids
-                        }
+                        agg_results = {pgid: aggregate_cell(pgid, da) for pgid in prefiltered_pgids}
                     da.close()
                     for pgid in agg_results:
                         df.at[(pgid, year), "pop_count"] += agg_results[pgid]
@@ -461,6 +482,9 @@ class WorldPopData(Dataset):
                 )
                 progress.update(agg_task, advance=1)
                 progress.remove_task(year_task)
+        # fix issues with np.inf due to division by zero for 3 grid cells
+        # set them to zero as pop count is also zero there
+        df["pop_density"] = df["pop_density"].replace(np.inf, 0)
         self.storage.save(df, "processing", "wp_index")
         self.regenerate["preprocessing"] = False
         return df
@@ -510,129 +534,8 @@ class WorldPopData(Dataset):
         df["pop_count"] = df.pop_count.apply(lambda x: 0 if pd.isna(x) else x)
         return df.sort_index(), years
 
-    def prep_scale_factors(self, df_wpp: pd.DataFrame) -> dict[int, dict[str, float]]:
-        """Pre-calculates and caches scale factors for UN adjustment and extrapolation.
 
-        This method generates a dictionary of scaling factors used to adjust raw
-        WorldPop country-level population rasters. For each target year and for
-        each country:
-        1.  **UN Adjustment (Years <= 2020):** It calculates a factor to scale the
-            raw WorldPop raster sum to match the UN WPP total population for that
-            country and year (via `_get_un_adjustment()`).
-        2.  **Extrapolation (Years > 2020):** It uses the 2020 WorldPop raster as a
-            base. It first calculates the UN adjustment factor for 2020. Then, it
-            multiplies this by a cumulative growth rate (from 2020 to the target
-            year) obtained from UN WPP data (via `self.wpp.get_wpp_multiplier_2020()`).
-        If a country is not found in the provided UN WPP data, the adjustment/
-        growth factor defaults to 1 for that country-year.
-
-        The resulting dictionary, mapping `year -> iso3 -> scale_factor`, is
-        cached to a pickle file in the processing directory as `scale_factors.pickle`.
-        If the file exists and is up to date, it is loaded from disk instead.
-
-        Args:
-            df_wpp (pd.DataFrame): Preprocessed UN WPP data, indexed by
-                ('iso3', 'year'), containing 'pop_total' and 'pop_change'.
-
-        Returns:
-            dict[int, dict[str, float]]: A nested dictionary where outer keys are
-                years, inner keys are ISO3 country codes, and values are the
-                combined scale factors.
-        """
-
-        def get_scale_factors():
-            self.console.print(
-                "Calculating multipliers to adjust raw WorldPop to UN estimates and extrapolate past 2020..."
-            )
-            scale_factor_dict = {}
-            for year in years:
-                scale_factor_dict[year] = {}
-                if year <= 2020:
-                    files = self.wp_files[year]
-                else:  # year > 2020 (max_year)
-                    files = self.wp_files[2020]
-                for f in tqdm(files, desc=f"{year}"):
-                    iso3 = f[f.rfind("/") + 1 : f.rfind("/") + 4].upper()
-                    fp = self.storage.build_filepath("processing", f, filetype="")
-                    da = xr.open_dataset(fp)["pop_count"]
-                    # calculate scale factor from raw worldpop
-                    if year <= 2020:
-                        growth_rate = 1
-                        try:
-                            un_total = float(df_wpp.loc[(iso3, year), "pop_total"])  # type: ignore
-                            un_adjust_factor = self._get_un_adjustment(da, un_total, iso3)
-                        except KeyError:
-                            un_adjust_factor = 1  # defaults to 1
-                            self.console.log(
-                                f"{iso3} not found in 'df_wpp', no UN adjustment performed and no growth assumed."
-                            )
-                    else:
-                        growth_rate = self.wpp.get_wpp_multiplier_2020(df_wpp, year, iso3, False)
-                        try:
-                            un_total = float(df_wpp.loc[(iso3, 2020), "pop_total"])  # type: ignore
-                            un_adjust_factor = self._get_un_adjustment(da, un_total, iso3)
-                        except KeyError:
-                            un_adjust_factor = 1  # defaults to 1
-                            self.console.log(
-                                f"{iso3} not found in 'df_wpp', no UN adjustment performed and no growth assumed."
-                            )
-                    scale_factor = un_adjust_factor * growth_rate
-                    scale_factor_dict[year][iso3] = scale_factor
-            # store
-            with open(fp_scale_factors, "wb") as f:
-                pickle.dump(scale_factor_dict, f)
-            return scale_factor_dict
-
-        years = list(np.arange(self.global_config["start_year"], date.today().year + 1))
-        fp_scale_factors = self.storage.build_filepath(
-            "processing", "scale_factors", filetype=".pickle"
-        )
-        if not self.regenerate["preprocessing"] and os.path.exists(fp_scale_factors):
-            with open(fp_scale_factors, "rb") as f:
-                scale_factor_dict = pickle.load(f)
-            if max(years) in scale_factor_dict.keys():
-                return scale_factor_dict
-            else:
-                scale_factor_dict = get_scale_factors()
-        else:
-            scale_factor_dict = get_scale_factors()
-        return scale_factor_dict
-
-    def _get_un_adjustment(self, da: xr.DataArray, un_total: float, iso3: str) -> float:
-        """Adjusts WorldPop population counts to match a UN estimates.
-
-        Calculates a scaling factor by comparing the sum of the input DataArray
-        to the UN WPP estimate and applies this factor to the DataArray.
-
-        Args:
-            da (xr.DataArray): Input WorldPop population DataArray for a country/year.
-            un_total (float): Target total population from UN WPP data.
-            iso3 (str): Current country, used for warning message.
-
-        Returns:
-            xr.DataArray: The DataArray with values scaled to sum to `un_total`.
-        """
-        if da.size > 1000000000:  # limit xr.where to 10-15GB RAM
-            # memory efficiency: chunk the calcualtion if the size of the country is too big
-            max_y = float(s_ceil(da.y.max().item()))
-            max_x = float(s_ceil(da.x.max().item()))
-            min_y = float(s_floor(da.y.min().item()))
-            min_x = float(s_floor(da.x.min().item()))
-            ys = np.append(np.arange(max_y, min_y, -10), min_y)
-            xs = np.append(np.arange(min_x, max_x, 10), max_x)
-            sums = []
-            for i, j in slice_tuples(ys, xs):
-                if i == len(ys) - 1 or j == len(xs) - 1:
-                    continue
-                da_temp = da.sel(y=slice(ys[i], ys[i + 1]), x=slice(xs[j], xs[j + 1]))
-                partial_sum = da_temp.sum().item()
-                sums.append(partial_sum)
-            wp_total = sum(sums)
-        else:
-            wp_total = da.sum().item()
-        try:
-            factor = un_total / wp_total
-        except ZeroDivisionError:
-            self.console.print(f"WordPop data for {iso3} sums to 0, no adjustment.")
-            factor = 1
-        return factor
+if __name__ == "__main__":
+    config = ConfigParser()
+    wp = WorldPopData(config)
+    wp.load_data()

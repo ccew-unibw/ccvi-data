@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-from utils.transformations import winsorization_normalization
+from utils.data_processing import winsorization_normalization
 
 
 def get_last_completed_quarter():
