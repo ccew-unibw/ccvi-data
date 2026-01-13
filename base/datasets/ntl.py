@@ -279,15 +279,21 @@ class NTLData(Dataset):
             assert password is not None, (
                 "EOG_PASSWORD missing from .env or .env not loaded correctly."
             )
+            client_id = os.getenv("EOG_ID")
+            assert client_id is not None, "EOG_ID missing from .env or .env not loaded correctly."
+            client_secret = os.getenv("EOG_SECRET")
+            assert client_secret is not None, (
+                "EOG_SECRET missing from .env or .env not loaded correctly."
+            )
             # Authentication code from: https://eogdata.mines.edu/products/register/
             params = {
-                "client_id": "eogdata_oidc",
-                "client_secret": "2677ad81-521b-4869-8480-6d05b9e57d48",
+                "client_id": client_id,
+                "client_secret": client_secret,
                 "username": username,
                 "password": password,
                 "grant_type": "password",
             }
-            token_url = "https://eogauth.mines.edu/auth/realms/master/protocol/openid-connect/token"
+            token_url = "https://eogauth-new.mines.edu/realms/eog/protocol/openid-connect/token"
             response = requests.post(token_url, data=params)
             access_token_dict = json.loads(response.text)
             access_token = access_token_dict.get("access_token")
