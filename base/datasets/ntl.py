@@ -296,13 +296,13 @@ class NTLData(Dataset):
                 "password": password,
                 "grant_type": "password",
             }
-            token_url = 'https://eogauth-new.mines.edu/realms/eog/protocol/openid-connect/token'
-            response = requests.post(token_url, data = params)
+            token_url = "https://eogauth-new.mines.edu/realms/eog/protocol/openid-connect/token"
+            response = requests.post(token_url, data=params)
             access_token_dict = json.loads(response.text)
-            access_token = access_token_dict.get('access_token')
+            access_token = access_token_dict.get("access_token")
             # Submit request with token bearer
-            auth = 'Bearer ' + access_token
-            headers = {'Authorization' : auth}
+            auth = "Bearer " + access_token
+            headers = {"Authorization": auth}
             self.auth_headers = headers
         return
 
@@ -522,9 +522,3 @@ class NTLData(Dataset):
         del mask
         ntl = ntl.to_dataset(name="ntl")
         return ntl
-
-
-if __name__ == "__main__":
-    config = ConfigParser()
-    ntl = NTLData(config)
-    ntl.load_data()

@@ -38,6 +38,8 @@ class LGRIPData(Dataset):
 
         Args:
             config (ConfigParser): An initialized ConfigParser instance.
+            name (str): Name of the dataset in Earthdata.
+            version (str): Version of the dataset in Earthdata.
         """
         super().__init__(config=config)
         self.files = [
@@ -47,29 +49,36 @@ class LGRIPData(Dataset):
         self.name = name
         self.version = version
 
-    def load_data(self, start_date:str, end_date:str|None = None):
+    def load_data(self, start_date: str, end_date: str | None = None):
         """Downloads LGRIP GeoTIFF tiles if they are missing.
 
-        Queries NASA's earthdata for available granules. If regeneration is not 
-        forced, it compares them to the list of files in storage to determine 
+        Queries NASA's earthdata for available granules. If regeneration is not
+        forced, it compares them to the list of files in storage to determine
         whether files are missing. For the remaining (or all if regenerate["data"]=True)
-        files iterates through them, and downloads them, updating `self.files` 
-        in the process. Requires Earthdata user and password set in the .env 
+        granules iterates through them, and downloads them, updating `self.files`
+        in the process. Requires Earthdata user and password set in the .env
         file. Sets `self.data_loaded` to True upon successful completion.
 
         This method populates the processing storage with the raw LGRIP GeoTIFFs
         and does not return data directly.
-        
+
         Args:
-        
+            start_date (str): Start date for the time window of the desired granules.
+                Isoformat or parseable date string.
+            end_date (str | None): End date for the time window of the desired granules.
+                If not None, isoformat or parseable date string or None. If None,
+                defaults to current date (i.e. all after start date).
+
         """
         granules = self._search_earthdata_granules(start_date, end_date)
         if self.regenerate["data"]:
             # set self.files to empty list since we want to re-download
             self.files = []
         # only download files not in storage
-        granules_download = [g for g in granules if os.path.basename(g.data_links()[0]) not in self.files]
-        
+        granules_download = [
+            g for g in granules if os.path.basename(g.data_links()[0]) not in self.files
+        ]
+
         self.console.print("Downloading LGRIP files...")
         if len(granules_download) == 0:
             self.console.print("All required files already in local storage.")
@@ -88,13 +97,17 @@ class LGRIPData(Dataset):
         self.data_loaded = True
         return
 
-    def _search_earthdata_granules(self, start_date:str, end_date: str | None = None) -> list[earthaccess.DataGranule]:
+    def _search_earthdata_granules(
+        self, start_date: str, end_date: str | None = None
+    ) -> list[earthaccess.DataGranule]:
         """Queries earthdata for existing granules for a dataset, version, and time period.
 
         Args:
-            start_date (str): Isoformat or parseable date string.
-            end_date (str | None): Isoformat or parseable date string or None. If None,
-                defaults to current date.
+            start_date (str): Start date for the time window of the desired granules.
+                Isoformat or parseable date string.
+            end_date (str | None): End date for the time window of the desired granules.
+                If not None, isoformat or parseable date string or None. If None,
+                defaults to current date (i.e. all after start date).
 
         Returns:
             (list[earthaccess.results.DataGranule]): Result from earthaccess query.
@@ -109,7 +122,7 @@ class LGRIPData(Dataset):
         results = earthaccess.search_data(
             short_name=self.name,
             version=self.version,
-            temporal=(start_date_parsed, end_date_parsed)
+            temporal=(start_date_parsed, end_date_parsed),
         )
         return results
 
