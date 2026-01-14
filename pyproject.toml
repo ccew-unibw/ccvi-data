@@ -14,6 +14,7 @@ dependencies = [
     "dask>=2025.5.0",
     "dotenv>=0.9.9",
     "duckdb>=1.2.2",
+    "earthaccess>=0.15.1",
     "earthengine-api>=1.5.15",
     "geopandas>=1.0.1",
     "h5netcdf>=1.6.1",
