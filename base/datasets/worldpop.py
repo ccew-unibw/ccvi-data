@@ -39,8 +39,6 @@ class WorldPopData(Dataset):
             dataset. Set to the 100m Constrained Population (R2025A v1) dataset.
         wp_files (dict[int, list[str]]): Dictionary mapping years to the list of
             corresponding WorldPop NetCDF filenames in processing storage.
-        wp_files_missing(dict[int, list[str]]): Dictionary with urls for all
-            "missing" files to be downloaded (again) during `load_data()`.
         data_loaded (bool): Flag indicating whether all available data is downloaded.
             Checked at the start of preprocessing.
         file_pixel_areas (str | None): Filepath to the cached NetCDF of global
@@ -74,20 +72,17 @@ class WorldPopData(Dataset):
             )
         # check which years are already complete in storage
         years = np.arange(start_year, get_quarter("last").year + 1)
-        self.wp_files = {
-            year: [
-                f
-                for f in sorted(os.listdir(self.storage.storage_paths["processing"]))
-                if f.endswith(".nc") and f"_{year}_" in f
-            ]
-            for year in years
-        }
         if self.regenerate["data"]:
             self.wp_files = {year: [] for year in years}
-            files_available = self._query_api_files()
-            self.wp_files_missing = files_available
         else:
-            self.wp_files_missing = self._check_files_missing()
+            self.wp_files = {
+                year: [
+                    f
+                    for f in sorted(os.listdir(self.storage.storage_paths["processing"]))
+                    if f.endswith(".nc") and f"_{year}_" in f
+                ]
+                for year in years
+            }
         self.data_loaded = False
         self.file_pixel_areas = None
 
@@ -165,16 +160,17 @@ class WorldPopData(Dataset):
     def load_data(self):
         """Downloads WorldPop country-level population rasters and global pixel area.
 
-        Iterates through years in `self.wp_files_missing`. For each year, iterates
-        though any missing files, using `_download_worldpop_file` to download the
-        GeoTIFF, convert it to NetCDF, and store it. Updates `self.wp_files`.
-        Does so after downloading the global pixel area file in the same fashion
-        first, storing its path in `self.file_pixel_areas`. Sets `self.data_loaded`
-        to True upon successful completion of all downloads. Updates the global
-        regeneration config for the 'data' stage of 'worldpop'.
+        Populates yearly `wp_files_missing` based on an API query. Iterates through 
+        years and for each year, iterates though any missing files, using 
+        `_download_worldpop_file` to download the GeoTIFF, convert it to NetCDF,
+        and store it. Updates `self.wp_files`. Does so after downloading the 
+        global pixel area file in the same fashion first, storing its path in 
+        `self.file_pixel_areas`. Sets `self.data_loaded` to True upon successful 
+        completion of all downloads. Updates the global regeneration config for 
+        the 'data' stage of 'worldpop'.
 
         This method populates the processing storage and does not return data directly.
-        """
+        """      
         # Start with land areas since this is outside the other logic
         url = "https://data.worldpop.org/GIS/Pixel_area/Global_2000_2020/0_Mosaicked/global_px_area_1km.tif"
         filename = url[url.rfind("/") + 1 :].replace(".tif", ".nc")
@@ -183,9 +179,17 @@ class WorldPopData(Dataset):
             self.console.print("Downloading global pixel areas...")
             self._download_worldpop_file(url, fp, layer_name="land_area")
         self.file_pixel_areas = fp
-
+        
+        # check for missing files
+        if self.regenerate["data"]:
+            files_available = self._query_api_files()
+            wp_files_missing = files_available
+        else:
+            wp_files_missing = self._check_files_missing()
+        
+        # goes through years and missing files and downloads the data
         if (
-            all(len(self.wp_files_missing[year]) == 0 for year in self.wp_files_missing)
+            all(len(wp_files_missing[year]) == 0 for year in wp_files_missing)
             and not self.regenerate["data"]
         ):
             self.console.print("All required WorldPop country files already downloaded.")
@@ -193,7 +197,7 @@ class WorldPopData(Dataset):
             self.console.print(
                 "Downloading WorldPop takes multiple hours per year if not in storage."
             )
-            missing = sum([len(self.wp_files_missing[year]) for year in self.wp_files_missing])
+            missing = sum([len(wp_files_missing[year]) for year in wp_files_missing])
             if self.regenerate["data"]:
                 self.console.print(
                     'Re-downloading WorldPop completely, since "worldpop" key in regenerate["data"] in the global config.'
@@ -203,8 +207,8 @@ class WorldPopData(Dataset):
 
             with Progress(console=self.console) as progress:
                 task_download = progress.add_task("[yellow]Downloading WorldPop ...", total=missing)
-                for year in self.wp_files_missing:
-                    urls = [f for f in self.wp_files_missing[year]]
+                for year in wp_files_missing:
+                    urls = [f for f in wp_files_missing[year]]
                     task_download_year = progress.add_task(
                         f"[blue]Downloading {year}...", total=len(urls)
                     )
