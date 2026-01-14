@@ -149,6 +149,7 @@ class NTLData(Dataset):
                     completed=(len(self.years) - len(years)) * 3,
                 )
                 downloaded, skipped, failed = 0, 0, 0
+                last_year_unavailable = False
                 for year in years:
                     if year <= 2021:  # from 2022 onwards the version is 2.2
                         version = "v21"
@@ -157,7 +158,7 @@ class NTLData(Dataset):
                     url = f"https://eogdata.mines.edu/nighttime_light/annual/{version}/{year}/"
                     files = []
                     try:
-                        response = requests.get(url)
+                        response = requests.get(url, headers=self.auth_headers)
                         response.raise_for_status()
                         # the regex might break in the future, the naming is unfortunately not the most consistent
                         ntl_median = re.search(
@@ -207,6 +208,7 @@ class NTLData(Dataset):
                                 self.years_missing.remove(year)
                             except ValueError:
                                 pass
+                            last_year_unavailable = True
                         progress.update(task_download, advance=3)
                         continue
 
@@ -231,7 +233,8 @@ class NTLData(Dataset):
                 progress.console.print(
                     f"{downloaded} files newly downloaded, {skipped} already existing files skipped, {failed} errors."
                 )
-            if failed == 0:
+            # data is also considered loaded if failed are just due to unavailable last years in ntl
+            if failed == 0 or (last_year_unavailable and failed == 3):
                 self.data_loaded = True
                 self.regenerate["data"] = False
         return
@@ -293,14 +296,13 @@ class NTLData(Dataset):
                 "password": password,
                 "grant_type": "password",
             }
-            token_url = "https://eogauth-new.mines.edu/realms/eog/protocol/openid-connect/token"
-            response = requests.post(token_url, data=params)
+            token_url = 'https://eogauth-new.mines.edu/realms/eog/protocol/openid-connect/token'
+            response = requests.post(token_url, data = params)
             access_token_dict = json.loads(response.text)
-            access_token = access_token_dict.get("access_token")
+            access_token = access_token_dict.get('access_token')
             # Submit request with token bearer
-            ## Change data_url variable to the file you want to download
-            auth = "Bearer " + access_token
-            headers = {"Authorization": auth}
+            auth = 'Bearer ' + access_token
+            headers = {'Authorization' : auth}
             self.auth_headers = headers
         return
 
@@ -520,3 +522,9 @@ class NTLData(Dataset):
         del mask
         ntl = ntl.to_dataset(name="ntl")
         return ntl
+
+
+if __name__ == "__main__":
+    config = ConfigParser()
+    ntl = NTLData(config)
+    ntl.load_data()
