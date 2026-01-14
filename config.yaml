@@ -10,8 +10,8 @@ data:
   land_mask: ne_50m_land.zip # https://www.naturalearthdata.com/downloads/
   inland_water_mask: ne_10m_lakes.zip # https://www.naturalearthdata.com/downloads/
   acled: acled_index_input_20250704.parquet # https://acleddata.com/
-  shdi: SHDI-SGDI-Total 8.0.csv # https://globaldatalab.org/
-  shdi_shapes: "GDL Shapefiles V6.4.zip" # https://globaldatalab.org/
+  shdi: "Subnational HDI Data v8.4.csv" # https://globaldatalab.org/
+  shdi_shapes: "GDL Shapefiles V6.6.zip" # https://globaldatalab.org/
   wpp: WPP2024_GEN_F01_DEMOGRAPHIC_INDICATORS_COMPACT.xlsx # https://population.un.org/wpp/
   wpp_agegroups: WPP2024_POP_F03_1_POPULATION_SELECT_AGE_GROUPS_BOTH_SEXES.xlsx # https://population.un.org/wpp/
   freedomhouse: All_data_FIW_2013-2024.xlsx # https://freedomhouse.org/report/freedom-world
@@ -20,7 +20,7 @@ data:
   hdi: HDR25_Composite_indices_complete_time_series.csv # https://hdr.undp.org/data-center/
   epr: EPR-2021.csv # https://icr.ethz.ch/data/epr/
   geoepr: GeoEPR-2021.geojson # https://icr.ethz.ch/data/epr/
-  swiid: swiid9_8_summary.csv # https://fsolt.org/swiid/
+  swiid: swiid9_91_summary.csv # https://fsolt.org/swiid/
   aqueduct: Aq40_Y2023D07M05.gdb # https://www.wri.org/data/aqueduct-global-maps-40-data
   esdac: Below_ground_carbon_debt.tif # https://esdac.jrc.ec.europa.eu/content/land-degradation-debt - requires manual data request
   soil_erosion: RUSLE_Baseline_2020_10s.tif # output from MAGPIE model run, publication location TBD
