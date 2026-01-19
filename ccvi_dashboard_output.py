@@ -287,6 +287,7 @@ class CCVIWrapper:
                 self.ccvi.storage.build_filepath("output", "vul_country_raw", subfolder)
             )
         ):
+            self.console.print("Load raw vulnerability data...")
             df_vul_country = get_vul_country_data()
             self.ccvi.storage.save(df_vul_country, filename="vul_country_raw", subfolder=subfolder)
         # send to S3
