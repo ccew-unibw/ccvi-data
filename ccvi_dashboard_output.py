@@ -240,7 +240,7 @@ class CCVIWrapper:
         for path, _, files in os.walk(directory):
             for f in files:
                 fp = os.path.join(path, f)
-                key = os.path.join("new", os.path.relpath(fp, directory))
+                key = os.path.join("index", os.path.relpath(fp, directory))
                 s3_client.upload_file(Filename=fp, Bucket=bucket_name, Key=key)
         return
 
