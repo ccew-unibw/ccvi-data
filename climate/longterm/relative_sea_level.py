@@ -29,12 +29,12 @@ class CliLongtermRelativeSeaLevel(Indicator, NormalizationMixin):
             "processing", filename="preprocessed"
         )
         try:
-            fp_preprocessed = pd.read_parquet(fp_preprocessed)
+            df_preprocessed = pd.read_parquet(fp_preprocessed)
             last_quarter_date = get_quarter("last")
 
-            if fp_preprocessed["time"].max().date() < last_quarter_date:
+            if df_preprocessed["time"].max().date() < last_quarter_date:
                 raise FileNotFoundError
-            return fp_preprocessed
+            self.console.print("Existing preprocessed data loaded from storage.")
 
         except FileNotFoundError:
             print("-- df_base creation ...")
@@ -42,7 +42,7 @@ class CliLongtermRelativeSeaLevel(Indicator, NormalizationMixin):
             print("-- create_grid_quarter_aggregates ...")
             df_preprocessed = self.event_data.create_grid_quarter_aggregates(df_base, df_event_data)
 
-            return df_preprocessed
+        return df_preprocessed
 
     def create_indicator(self, df_preprocessed: pd.DataFrame) -> pd.DataFrame:
         df_preprocessed.rename(columns={"count": f"{self.composite_id}_raw"}, inplace=True)
