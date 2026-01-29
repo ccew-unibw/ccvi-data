@@ -137,7 +137,8 @@ def apirequest(
     CDS_ECMWF_KEY = os.getenv("CDS_ECMWF_KEY")
 
     dataset = "derived-drought-historical-monthly"
-    c = cdsapi.Client(url="https://xds-preprod.ecmwf.int/api", key=f"{CDS_ECMWF_KEY}")
+    #c = cdsapi.Client(url="https://xds-preprod.ecmwf.int/api", key=f"{CDS_ECMWF_KEY}")
+    c = cdsapi.Client(url="https://cds.climate.copernicus.eu/api", key=f"{CDS_ECMWF_KEY}")
     request = {
         "variable": [var],
         "accumulation_period": ["12"],

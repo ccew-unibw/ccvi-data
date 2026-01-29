@@ -5,7 +5,7 @@ import requests
 import math
 
 import numpy as np
-from datetime import date
+from datetime import date, timedelta
 import xarray as xr
 
 from base.objects import Dataset
@@ -164,17 +164,30 @@ class BERKLEYData(Dataset):
         berkley_temp = berkley_temp.sel(
             time=slice(date(self.global_config["start_year"] - (years_average + 1), 1, 1), None)
         )
-        berkley_temp_average = berkley_temp.rolling(time=12 * years_average).mean()
-
-        # limit to quarters - select 10-year means from last month in each quarter and convert to first month for consistency and merging
-        berkley_temp_average = berkley_temp_average.sel(
-            time=xr.date_range(
-                f"{self.global_config['start_year']}-03-01",
-                berkley_temp.time.values.max(),
-                freq="3MS",
+        window = 12 * years_average
+        # in case of coverage gaps we tolerate anything where >90% of the full window is covered
+        berkley_temp_average = berkley_temp.rolling(time=window, min_periods=round(.90 * window)).mean()
+        # only select means for last month in each quarter for use in the index
+        try:
+            # accept one missing month
+            berkley_temp_average = berkley_temp_average.sel(
+                time=xr.date_range(
+                    f"{self.global_config['start_year']}-03-01",
+                    get_quarter(),
+                    freq="3MS",
+                ), method="nearest", tolerance=timedelta(days=31)
             )
-        )
-        berkley_temp_average["time"] = np.vectorize(lambda x: date(x.year, x.month - 2, 1))(
+        except KeyError:
+            # if difference to last available date is larger than tolerance, will result in KeyError
+            berkley_temp_average = berkley_temp_average.sel(
+                time=xr.date_range(
+                    f"{self.global_config['start_year']}-03-01",
+                    berkley_temp.time.values.max(),
+                    freq="3MS",
+                )
+            )
+        # set dates to first of month for consistency
+        berkley_temp_average["time"] = np.vectorize(lambda x: date(x.year, 3 * math.ceil(x.month / 3) - 2, 1))(
             berkley_temp_average.time
         )
         df_berkley = berkley_temp_average.to_dataframe()

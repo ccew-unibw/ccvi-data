@@ -51,6 +51,7 @@ class UCDPData(Dataset):
                 raise FileNotFoundError
             ucdp = self.storage.load("processing", "ucdp_raw")
             ucdp = self._update_ucdp(ucdp)
+            self.storage.save(ucdp, "processing", "ucdp_raw")
         except FileNotFoundError:
             ucdp = self._download_ucpd()
             self.storage.save(ucdp, "processing", "ucdp_raw")
@@ -136,6 +137,8 @@ class UCDPData(Dataset):
                 return df
 
         for year in range(int(latest_ged[:2]), int(str(current_year + 1)[2:])):
+            if latest_candidate is not None and year > int(latest_candidate[:2]):
+                break
             for i in range(1, 13):
                 candidate_version = f"{year}.0.{i}"
                 if candidate_version not in df["version"].unique():

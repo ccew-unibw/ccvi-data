@@ -240,7 +240,7 @@ class CCVIWrapper:
         for path, _, files in os.walk(directory):
             for f in files:
                 fp = os.path.join(path, f)
-                key = os.path.join("new", os.path.relpath(fp, directory))
+                key = os.path.join("index", os.path.relpath(fp, directory))
                 s3_client.upload_file(Filename=fp, Bucket=bucket_name, Key=key)
         return
 
@@ -287,6 +287,7 @@ class CCVIWrapper:
                 self.ccvi.storage.build_filepath("output", "vul_country_raw", subfolder)
             )
         ):
+            self.console.print("Load raw vulnerability data...")
             df_vul_country = get_vul_country_data()
             self.ccvi.storage.save(df_vul_country, filename="vul_country_raw", subfolder=subfolder)
         # send to S3

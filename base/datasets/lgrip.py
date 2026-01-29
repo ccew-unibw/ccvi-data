@@ -1,9 +1,10 @@
 import itertools
 import os
-import re
 
-import requests
+from dotenv import load_dotenv
+import earthaccess
 import numpy as np
+import pendulum
 from rich.progress import Progress
 import rioxarray as rxr
 
@@ -20,7 +21,7 @@ class LGRIPData(Dataset):
 
     Attributes:
         data_key (str): Set to "lgrip".
-        local (bool): Set to False, as data is downloaded via http.
+        local (bool): Set to False, as data is downloaded via NASA earthdata.
         files (list[str]): List of files for individual tiles in storage.
         data_loaded (bool): Flag to indicate whether the data is completely in
             storage.
@@ -29,7 +30,7 @@ class LGRIPData(Dataset):
     data_key: str = "lgrip"
     local: bool = False
 
-    def __init__(self, config: ConfigParser):
+    def __init__(self, config: ConfigParser, name: str, version: str):
         """Initializes the LGRIPData instance.
 
         Checks the processing directory for already downloaded GeoTIFF
@@ -37,87 +38,93 @@ class LGRIPData(Dataset):
 
         Args:
             config (ConfigParser): An initialized ConfigParser instance.
+            name (str): Name of the dataset in Earthdata.
+            version (str): Version of the dataset in Earthdata.
         """
         super().__init__(config=config)
         self.files = [
             f for f in os.listdir(self.storage.storage_paths["processing"]) if f.endswith(".tif")
         ]
         self.data_loaded = False
+        self.name = name
+        self.version = version
 
-    def load_data(self):
+    def load_data(self, start_date: str, end_date: str | None = None):
         """Downloads LGRIP GeoTIFF tiles if they are missing.
 
-        Scrapes the LGRIP data directory webpage to get a list of all available
-        GeoTIFF tiles. If regeneration is not forced, it compares this to the
-        list of files in storage to determine wheter files are missing. For
-        the remaining (or all if regenerate["data"]=True) files iterates through
-        them, and downloads them via the `_download_tile()` method, updating
-        `self.files` in the process. Requires Earthdata user and password loaded
-        from the .env file. Sets `self.data_loaded` to True upon successful completion.
+        Queries NASA's earthdata for available granules. If regeneration is not
+        forced, it compares them to the list of files in storage to determine
+        whether files are missing. For the remaining (or all if regenerate["data"]=True)
+        granules iterates through them, and downloads them, updating `self.files`
+        in the process. Requires Earthdata user and password set in the .env
+        file. Sets `self.data_loaded` to True upon successful completion.
 
         This method populates the processing storage with the raw LGRIP GeoTIFFs
         and does not return data directly.
-        """
-        url = "https://e4ftl01.cr.usgs.gov/COMMUNITY/LGRIP30.001/2014.01.01/"
-        response = requests.get(url)
-        response.raise_for_status()  # we want an error if loading the site doesn't work
-        web_text = response.text
-        files = set(re.findall("LGRIP30_2015_.{24,26}\.tif", web_text))
-        if not self.regenerate["data"]:
-            # only download files not in storage
-            files = [f for f in files if f not in self.files]
-        else:
-            # set self.files to empty list since we want to re-download
-            self.files = []
-
-        self.console.print("Downloading LGRIP files...")
-        if len(files) == 0:
-            self.console.print("All required files already in local storage.")
-            self.data_loaded = True
-            return
-        else:
-            with Progress(console=self.console) as progress:
-                task_download = progress.add_task(
-                    "[green]Downloading (missing) tiles ...", total=len(files)
-                )
-                session = requests.Session()
-                for filename in files:
-                    fp = self.storage.build_filepath("processing", filename, filetype="")
-                    url_tile = url + filename
-                    self._download_tile(session, fp, url_tile)
-                    self.files.append(filename)
-                    progress.update(task_download, advance=1)
-            self.data_loaded = True
-            return
-
-    @staticmethod
-    def _download_tile(session: requests.Session, fp: str, url_tile: str) -> None:
-        """Static method to download a single LGRIP GeoTIFF tile.
-
-        Uses a provided Session object to download a file from the url.
-        Handles authetication via the EARTHDATA credentials loaded from .env by
-        redirecting to the `urs.earthdata.nasa.gov` login page.
 
         Args:
-            session (requests.Session): A `requests.Session` object to maintain
-                cookies and connection state across potential redirects.
-            fp (str): The local filepath where the downloaded GeoTIFF will be saved.
-            url_tile (str): The URL of the LGRIP GeoTIFF tile to download.
+            start_date (str): Start date for the time window of the desired granules.
+                Isoformat or parseable date string.
+            end_date (str | None): End date for the time window of the desired granules.
+                If not None, isoformat or parseable date string or None. If None,
+                defaults to current date (i.e. all after start date).
+
         """
-        response = session.get(url_tile)
-        # handle redirect and authentication via earthdata
-        if response.status_code == 401 and "https://urs.earthdata.nasa.gov/" in response.url:
-            user = os.getenv("EARTHDATA_USER")
-            pw = os.getenv("EARTHDATA_PASSWORD")
-            assert user is not None and pw is not None, (
-                "Please specify 'EARTHDATA_USER' and 'EARTHDATA_PASSWORD' env variables."
-            )
-            response = session.get(response.url, auth=(user, pw))
-        response.raise_for_status()  # we want an error if download doesnt work
-        with open(fp, "wb") as f:
-            for chunk in response.iter_content(chunk_size=2048):
-                f.write(chunk)
-        return None
+        granules = self._search_earthdata_granules(start_date, end_date)
+        if self.regenerate["data"]:
+            # set self.files to empty list since we want to re-download
+            self.files = []
+        # only download files not in storage
+        granules_download = [
+            g for g in granules if os.path.basename(g.data_links()[0]) not in self.files
+        ]
+
+        self.console.print("Downloading LGRIP files...")
+        if len(granules_download) == 0:
+            self.console.print("All required files already in local storage.")
+        else:
+            # login to download
+            load_dotenv()
+            earthaccess.login(strategy="environment")
+            with Progress(console=self.console) as progress:
+                task_download = progress.add_task(
+                    "[green]Downloading (missing) tiles ...", total=len(granules_download)
+                )
+                for granule in granules_download:
+                    fp = self.storage.storage_paths["processing"]
+                    res = earthaccess.download(granule, local_path=fp)
+                    progress.update(task_download, advance=1)
+        self.data_loaded = True
+        return
+
+    def _search_earthdata_granules(
+        self, start_date: str, end_date: str | None = None
+    ) -> list[earthaccess.DataGranule]:
+        """Queries earthdata for existing granules for a dataset, version, and time period.
+
+        Args:
+            start_date (str): Start date for the time window of the desired granules.
+                Isoformat or parseable date string.
+            end_date (str | None): End date for the time window of the desired granules.
+                If not None, isoformat or parseable date string or None. If None,
+                defaults to current date (i.e. all after start date).
+
+        Returns:
+            (list[earthaccess.results.DataGranule]): Result from earthaccess query.
+        """
+        # input validation: parse and convert back to isoformat
+        start_date_parsed = pendulum.parse(start_date).date().isoformat()
+        if end_date is None:
+            end_date_parsed = pendulum.now().date().isoformat()
+        else:
+            end_date_parsed = pendulum.parse(end_date).date().isoformat()
+
+        results = earthaccess.search_data(
+            short_name=self.name,
+            version=self.version,
+            temporal=(start_date_parsed, end_date_parsed),
+        )
+        return results
 
     def create_grid_aggregates(self, grid: GlobalBaseGrid):
         """Aggregates high-resolution LGRIP tile data to the 0.5-degree grid.

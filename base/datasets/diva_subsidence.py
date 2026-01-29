@@ -188,51 +188,37 @@ class DIVASubsidenceData(Dataset):
             pd.DataFrame: Dataframe aligned to index grid with quarterly  aggregates.
         """
         fp_preprocessed = self.storage.build_filepath("processing", filename="preprocessed")
-        try:
-            df = pd.read_parquet(fp_preprocessed)
-            last_quarter_date = get_quarter("last")
 
-            if df["time"].max().date() < last_quarter_date:
-                raise FileNotFoundError
-            return df
-        except FileNotFoundError:
-            console.print(
-                "No preprocessed  data in storage or out of date," + " processing event data..."
-            )
+        # don't automatically start  download since those are separate step in the
+        # indicator logic that should each be performed deliberately
+        assert self.dataset_available, " download/data check has not run, check indicator logic"
 
-            # don't automatically start  download since those are separate step in the
-            # indicator logic that should each be performed deliberately
-            assert self.dataset_available, " download/data check has not run, check indicator logic"
+        # quarter as number 1,2,3,4
+        priogrid = df_base
+        coastline = df_event_level
 
-            # quarter as number 1,2,3,4
-            priogrid = df_base
-            coastline = df_event_level
+        # dorp duplicate pgid
+        priogrid_dedup = priogrid.reset_index().drop_duplicates(subset=["pgid"])
 
-            # dorp duplicate pgid
-            priogrid_dedup = priogrid.reset_index().drop_duplicates(subset=["pgid"])
+        priogrid_dedup = intersect_coastline_priogrid(coastline, priogrid_dedup)
+        priogrid_dedup.loc[priogrid_dedup["rslr_high"] < 0] = 0
+        priogrid_dedup = priogrid_dedup.fillna(0)
+        # file ist static from 2015 - assign this date
+        priogrid_dedup["year"] = 2015
 
-            priogrid_dedup = intersect_coastline_priogrid(coastline, priogrid_dedup)
-            priogrid_dedup = priogrid_dedup.loc[priogrid_dedup["rslr_high"] > 0]
-            # priogrid_dedup.to_csv("priogrid_sea_level_rise.csv",index=False)
-            # file ist static from Q4 2015 - assign this date
-            # priogrid_dedup["year"] = 2015
-            # priogrid_dedup["quarter"] = 4
+        # join the priogrid_dedup with the deduped priogrid using pgid, year, quarter
 
-            # join the priogrid_dedup with the deduped priogrid using pgid, year, quarter
+        df = priogrid.reset_index().merge(
+            priogrid_dedup[["pgid", "year", "rslr_high"]], on=["pgid", "year"], how="left"
+        )
 
-            df = priogrid.reset_index().merge(
-                priogrid_dedup[["pgid", "rslr_high"]], on=["pgid"], how="left"
-            )
+        df.rename(columns={"rslr_high": "count"}, inplace=True)
 
-            df.rename(columns={"rslr_high": "count"}, inplace=True)
+        df = df[["pgid", "year", "quarter", "lat", "lon", "count", "time"]]
 
-            df = df[["pgid", "year", "quarter", "lat", "lon", "count", "time"]]
+        df["time"] = pd.to_datetime(df["time"])
 
-            df["time"] = pd.to_datetime(df["time"])
-
-            df = df.fillna(0)
-
-            df.to_parquet(fp_preprocessed)
+        df.to_parquet(fp_preprocessed)
         return df
 
 
