@@ -9,6 +9,7 @@ dependencies = [
     "cartopy>=0.24.1",
     "cdsapi>=0.7.6",
     "clean-text>=0.6.0",
+    "cmcrameri>=1.9",
     "concentrationmetrics>=0.6.0",
     "country-converter>=1.3",
     "dask>=2025.5.0",
