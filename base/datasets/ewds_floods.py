@@ -95,8 +95,8 @@ def process_nc(ncfilepath, glofas_thresold):
     # rename columns latbin, lonbin with lat lon
     df.rename(
         columns={
-            "latbin": "LONGITUDE",
-            "lonbin": "LATITUDE",
+            "latbin": "LATITUDE",
+            "lonbin": "LONGITUDE",
             "valid_time": "EVENT_DATE",
             "count": "COUNT",
         },
