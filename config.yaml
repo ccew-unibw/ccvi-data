@@ -4,19 +4,19 @@
 # easy switching in case of updates. The keys are used as data source identifiers throughout the 
 # CCVI and match the data keys in the base.Dataset subclasses. 
 data:
-  vdem: V-Dem-CY-Full+Others-v15.rds # https://v-dem.net/data/the-v-dem-dataset/
+  vdem: V-Dem-CY-Full+Others-v16.rds # https://v-dem.net/data/the-v-dem-dataset/
   countries: geoBoundariesCGAZ_ADM0.gpkg # https://www.geoboundaries.org/
   admin1: geoBoundariesCGAZ_ADM1.gpkg # https://www.geoboundaries.org/
   land_mask: ne_50m_land.zip # https://www.naturalearthdata.com/downloads/
   inland_water_mask: ne_10m_lakes.zip # https://www.naturalearthdata.com/downloads/
   acled: acled_index_input_20250704.parquet # https://acleddata.com/
-  shdi: "Subnational HDI Data v8.4.csv" # https://globaldatalab.org/
+  shdi: "Subnational HDI Data v10.1.csv" # https://globaldatalab.org/
   shdi_shapes: "GDL Shapefiles V6.6.zip" # https://globaldatalab.org/
   wpp: WPP2024_GEN_F01_DEMOGRAPHIC_INDICATORS_COMPACT.xlsx # https://population.un.org/wpp/
   wpp_agegroups: WPP2024_POP_F03_1_POPULATION_SELECT_AGE_GROUPS_BOTH_SEXES.xlsx # https://population.un.org/wpp/
   freedomhouse: All_data_FIW_2013-2024.xlsx # https://freedomhouse.org/report/freedom-world
   # CPI 2024 file comes in a format openpyxl cannot read - needs to be opened and saved as a standard excel worksheet before use
-  cpi: CPI2024-Results-and-trends.xlsx # https://www.transparency.org/en/cpi/2024
+  cpi: CPI2025_Results.xlsx # https://www.transparency.org/en/cpi/2025
   hdi: HDR25_Composite_indices_complete_time_series.csv # https://hdr.undp.org/data-center/
   epr: EPR-2021.csv # https://icr.ethz.ch/data/epr/
   geoepr: GeoEPR-2021.geojson # https://icr.ethz.ch/data/epr/
