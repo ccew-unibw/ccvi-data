@@ -142,7 +142,6 @@ class NTLData(Dataset):
             self.data_loaded = True
         else:
             with Progress(console=self.console) as progress:
-                self._eog_authenticate()
                 task_download = progress.add_task(
                     "[red]Downloading NTL...",
                     total=len(self.years) * 3,
@@ -151,6 +150,8 @@ class NTLData(Dataset):
                 downloaded, skipped, failed = 0, 0, 0
                 last_year_unavailable = False
                 for year in years:
+                    # there is apparently a timeout here, so its possible this will still fail even thought we auth every year
+                    self._eog_authenticate()
                     if year <= 2021:  # from 2022 onwards the version is 2.2
                         version = "v21"
                     else:
