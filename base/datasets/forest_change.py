@@ -5,6 +5,7 @@ import os
 
 import boto3
 import botocore
+from rich.progress import Progress
 
 from base.objects import ConfigParser, Dataset, GlobalBaseGrid
 from utils.conversions import pgid_to_coords
@@ -170,19 +171,19 @@ class GFCData(Dataset):
             self.console.print(
                 f"{len(files_to_download)}/{len(required_files)} potential files missing in storage. Expected are 63 based on 2024."
             )
-            # with Progress(console=self.console) as progress:
-            #     task_download = progress.add_task("Downloading GFC", total=len(files_to_download))
-            #     for filename in files_to_download:
-            #         object_key = f"{self.version}/{filename}"
-            #         filepath = self.storage.build_filepath("processing", filename, filetype="")
-            #         try:
-            #             self.s3_client.download_file(self.bucket_name, object_key, filepath)
-            #         except botocore.exceptions.ClientError as e:
-            #             if e.response["Error"]["Code"] == "404":
-            #                 self.console.print(f"404 Error: File not found in bucket: {object_key}")
-            #             else:
-            #                 self.console.print(f"Error downloading tile: {e}")
-            #         progress.update(task_download, advance=1)
+            with Progress(console=self.console) as progress:
+                task_download = progress.add_task("Downloading GFC", total=len(files_to_download))
+                for filename in files_to_download:
+                    object_key = f"{self.version}/{filename}"
+                    filepath = self.storage.build_filepath("processing", filename, filetype="")
+                    try:
+                        self.s3_client.download_file(self.bucket_name, object_key, filepath)
+                    except botocore.exceptions.ClientError as e:
+                        if e.response["Error"]["Code"] == "404":
+                            self.console.print(f"404 Error: File not found in bucket: {object_key}")
+                        else:
+                            self.console.print(f"Error downloading tile: {e}")
+                    progress.update(task_download, advance=1)
         self.data_loaded = True
         return
 
