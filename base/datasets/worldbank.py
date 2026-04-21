@@ -24,7 +24,7 @@ class WBData(Dataset):
     local: bool = False
     needs_storage: bool = False
 
-    def load_data(self, wb_series: dict[str, str], max_retries: int = 30) -> pd.DataFrame:
+    def load_data(self, wb_series: dict[str, str], max_retries: int = 30, **wb_kwargs) -> pd.DataFrame:
         """Downloads specified indicators from the World Bank API.
 
         Fetches data for the given World Bank series codes for all world economies,
@@ -39,6 +39,7 @@ class WBData(Dataset):
                 to desired output column names.
             max_retries (int, optional): The maximum number of times to retry
                 the API call in case of failure. Defaults to 30.
+            **wb_kwargs: additional kwargs passed along to wb.data.DataFrame().
 
         Returns:
             pd.DataFrame: A DataFrame indexed by ('iso3', 'year') containing the
@@ -57,11 +58,15 @@ class WBData(Dataset):
                     time=range(self.global_config["start_year"] - 5, date.today().year + 1),  # type: ignore
                     columns="series",
                     index=["economy", "time"],
+                    **wb_kwargs
                 )
                 success = True
-            except wb.APIError:
+            except wb.APIError as e:
                 self.console.print(
-                    "Error calling World Bank API, retrying in 30 secs.",
+                    "Error calling World Bank API:", e
+                )
+                self.console.print(
+                    "Retrying in 30 secs.",
                     f"{i}/{max_retries} retries...",
                 )
                 time.sleep(30)
