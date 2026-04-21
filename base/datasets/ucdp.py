@@ -1,16 +1,18 @@
 from datetime import date, datetime, timedelta
 from functools import cache
 import math
+import os
 import time
 from typing import Any
 import numpy as np
 import requests
 
 import country_converter as coco
+from dotenv import load_dotenv
 import geopandas as gpd
 import pandas as pd
 
-from base.objects import Dataset, GlobalBaseGrid
+from base.objects import ConfigParser, Dataset, GlobalBaseGrid
 
 
 class UCDPData(Dataset):
@@ -26,11 +28,17 @@ class UCDPData(Dataset):
         data_key (str): Set to "ucdp".
         local (bool): Set to False, as data is sourced from the UCDP API.
         url_ged (str): The base API endpoint URL for the UCDP GED datasets.
+        api_token (str): UCDP API token, loaded from .env file during init.
     """
 
     data_key = "ucdp"
     local = False
     url_ged: str = "https://ucdpapi.pcr.uu.se/api/gedevents/{}?pagesize=1000"
+    
+    def __init__(self, config: ConfigParser):
+        super().__init__(config)
+        load_dotenv()
+        self.api_token = os.getenv("UCDP_TOKEN")
 
     def load_data(self) -> Any:
         """Loads UCDP event data, downloading or updating as necessary.
@@ -211,7 +219,7 @@ class UCDPData(Dataset):
         try:
             response = requests.get(
                 self.url_ged.format(possible_version).replace("pagesize=1000", "pagesize=1")
-                + "&page=0"
+                + "&page=0", headers={"x-ucdp-access-token": self.api_token}
             )
             response.raise_for_status()
             ged_version = possible_version
@@ -227,7 +235,7 @@ class UCDPData(Dataset):
                 try:
                     response = requests.get(
                         self.url_ged.format(test_version).replace("pagesize=1000", "pagesize=1")
-                        + "&page=0"
+                        + "&page=0", headers={"x-ucdp-access-token": self.api_token}
                     )
                     response.raise_for_status()
                     candidate_version = test_version
@@ -268,7 +276,7 @@ class UCDPData(Dataset):
         """
         self.console.print(f"Downloading UCDP GED version {version}...")
         url = self.url_ged.format(version)
-        response = requests.get(url)
+        response = requests.get(url, headers={"x-ucdp-access-token": self.api_token})
         response.raise_for_status()
         content = response.json()
         ged_entries = content["Result"]
@@ -278,7 +286,9 @@ class UCDPData(Dataset):
             while retries <= max_retries and not success:
                 retries += 1
                 try:
-                    response = requests.get(content["NextPageUrl"])
+                    response = requests.get(
+                        content["NextPageUrl"], headers={"x-ucdp-access-token": self.api_token}
+                    )
                     response.raise_for_status()
                     content = response.json()
                     ged_entries.extend(content["Result"])
@@ -308,7 +318,8 @@ class UCDPData(Dataset):
             list[str]: A list of all column names.
         """
         response = requests.get(
-            self.url_ged.format(version).replace("pagesize=1000", "pagesize=1") + "&page=0"
+            self.url_ged.format(version).replace("pagesize=1000", "pagesize=1") + "&page=0",
+            headers={"x-ucdp-access-token": self.api_token}
         )
         response.raise_for_status()
         columns = response.json()["Result"][0].keys()
