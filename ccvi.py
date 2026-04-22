@@ -413,18 +413,19 @@ if __name__ == "__main__":
     ## conflict dim "level"
     # con_level_intensity.run()
     # con_level_surrounding.run()
+    # con_level_persistence.run()
     # con_level.run()
-
-    ## conflict dim "persistence"
-    # con_persistence_intensity.run()
-    # con_persistence_surrounding.run()
-    # con_persistence.run()
 
     ## conflict dim "soctens"
     # con_soctens_intensity.run()
     # con_soctens_persistence.run()
     # con_soctens_surrounding.run()
     # con_soctens.run()
+    
+    ## conflict dim "context"
+    # con_context_actors.run()
+    # con_context_country.run()
+    # con_context.run()
 
     ## conflict pillar
     # con_pillar.run()
