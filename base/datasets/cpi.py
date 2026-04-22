@@ -34,7 +34,7 @@ class CPIData(Dataset):
         Returns:
             pd.DataFrame: The raw CPI data loaded from the Excel sheet.
         """
-        df_cpi = pd.read_excel(self.data_config[self.data_key], sheet_name=1, header=2)
+        df_cpi = pd.read_excel(self.data_config[self.data_key], sheet_name=1, header=3)
         return df_cpi
 
     def preprocess_data(self, df_cpi: pd.DataFrame) -> pd.DataFrame:
