@@ -52,12 +52,13 @@ def get_vul_country_data():
     df_wpp = wpp.preprocess_wpp(wpp.load_data())
     df_unhcr = unhcr.preprocess_data(unhcr.load_data())[["forcibly_displaced"]]
     df_cpi = cpi.preprocess_data(cpi.load_data())
-    wb_dict = {"RL.EST": "rl", "NV.AGR.TOTL.ZS": "agr_value_added", "NY.GDP.MKTP.PP.CD": "gdp_ppp"}
+    wb_dict = {"NV.AGR.TOTL.ZS": "agr_value_added", "NY.GDP.MKTP.PP.CD": "gdp_ppp"}
     df_wb = wb.load_data(wb_dict)
+    df_wgi = wb.load_data({"GOV_WGI_RL.EST": "rl"}, db=3)
     df_imf = imf.preprocess_data(imf.load_data())
     df_gdp = ccvi.vul_socioeconomic_deprivation._merge_gdp_data(df_wb, df_imf)
     df_gdp = ccvi.vul_socioeconomic_deprivation._add_pc_values(df_gdp, df_wpp)
-    df_wb = pd.concat([df_wb[["rl", "agr_value_added"]], df_gdp[["gdp_ppp", "gdp_ppp_pc"]]], axis=1)
+    df_wb = pd.concat([df_wgi, df_wb[["agr_value_added"]], df_gdp[["gdp_ppp", "gdp_ppp_pc"]]], axis=1)
     ilo_indicators = {
         "EMP_TEMP_SEX_ECO_NB_A": "agr_sector_share",  # Employment by sex and economic activity (thousands) -- Annual
         "EMP_2EMP_SEX_ECO_NB_A": "agr_sector_share_model",  # Employment by sex and economic activity -- ILO modelled estimates, Nov. 2023 (thousands) -- Annual
