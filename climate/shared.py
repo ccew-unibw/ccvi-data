@@ -144,10 +144,7 @@ class NormalizationMixin:
         if quantile_normalization_limit is None:
             minv, maxv = ref.min(), ref.max()
         else:
-            q = quantile_normalization_limit["limits"]
-            ignore_zeroes = quantile_normalization_limit.get("ignore_zeroes_limit", False)
-            src = ref[ref != 0] if ignore_zeroes else ref
-            minv, maxv = np.nanquantile(src, q)
+            minv, maxv = np.nanquantile(ref, quantile_normalization_limit["limits"])
 
         df_indicator[composite_id] = winsorization_normalization(
             series, limits=(minv, maxv), fixed_limits=True,
