@@ -70,7 +70,7 @@ The repository is formated via [ruff](https://github.com/astral-sh/ruff).
 
 ## Configuration
 
-The `config.yaml` is the central configuration file for the indicator. For a full description of the settings, see the file itself.
+The `config.yaml` is the central configuration file for the data pipeline and the index. For a full description of the settings, see the file itself.
 
 The following configurations are available
 
