@@ -74,14 +74,16 @@ with console.status("Initializing CCVI components...", spinner="earth"):
     ### GLOBAL OBJECTS ###
     config = ConfigParser()
     base_grid = GlobalBaseGrid(config=config)
+    ind_kwargs = {
+        "config": config,
+        "grid": base_grid,
+    }
 
     ### CONFLICT ###
     # Dim "level"
-    con_level_intensity = ConLevelIntensity(config=config, grid=base_grid)
-    con_level_surrounding = ConLevelSurrounding(config=config, grid=base_grid)
-    con_level_persistence = ConLevelPersistence(
-        config=config, grid=base_grid, base_indicator=con_level_intensity
-    )
+    con_level_intensity = ConLevelIntensity(**ind_kwargs)
+    con_level_surrounding = ConLevelSurrounding(**ind_kwargs)
+    con_level_persistence = ConLevelPersistence(**ind_kwargs, base_indicator=con_level_intensity)
     con_level = Dimension(
         "CON",
         "level",
@@ -90,11 +92,11 @@ with console.status("Initializing CCVI components...", spinner="earth"):
     )
 
     # Dim "soctens"
-    con_soctens_intensity = ConSoctensIntensity(config=config, grid=base_grid)
+    con_soctens_intensity = ConSoctensIntensity(**ind_kwargs)
     con_soctens_persistence = ConSoctensPersistence(
-        config=config, grid=base_grid, base_indicator=con_soctens_intensity
+        **ind_kwargs, base_indicator=con_soctens_intensity
     )
-    con_soctens_surrounding = ConSoctensSurrounding(config=config, grid=base_grid)
+    con_soctens_surrounding = ConSoctensSurrounding(**ind_kwargs)
     con_soctens = Dimension(
         "CON",
         "soctens",
@@ -103,8 +105,8 @@ with console.status("Initializing CCVI components...", spinner="earth"):
     )
 
     # Dim "context"
-    con_context_actors = ConContextActors(config=config, grid=base_grid)
-    con_context_country = ConContextCountry(config=config, grid=base_grid)
+    con_context_actors = ConContextActors(**ind_kwargs)
+    con_context_country = ConContextCountry(**ind_kwargs)
     con_context = ExposureDimension(
         base_grid,
         "CON",
@@ -116,12 +118,12 @@ with console.status("Initializing CCVI components...", spinner="earth"):
 
     ### VULNERABILITY ###
     # Dim "socioeconomic"
-    vul_socioeconomic_agriculture = VulSocioeconomicAgriculture(config=config, grid=base_grid)
-    vul_socioeconomic_deprivation = VulSocioeconomicDeprivation(config=config, grid=base_grid)
-    vul_socioeconomic_education = VulSocioeconomicEducation(config=config, grid=base_grid)
-    vul_socioeconomic_health = VulSocioeconomicHealth(config=config, grid=base_grid)
-    vul_socioeconomic_inequality = VulSocioeconomicInequality(config=config, grid=base_grid)
-    vul_socioeconomic_hunger = VulSocioeconomicHunger(config=config, grid=base_grid)
+    vul_socioeconomic_agriculture = VulSocioeconomicAgriculture(**ind_kwargs)
+    vul_socioeconomic_deprivation = VulSocioeconomicDeprivation(**ind_kwargs)
+    vul_socioeconomic_education = VulSocioeconomicEducation(**ind_kwargs)
+    vul_socioeconomic_health = VulSocioeconomicHealth(**ind_kwargs)
+    vul_socioeconomic_inequality = VulSocioeconomicInequality(**ind_kwargs)
+    vul_socioeconomic_hunger = VulSocioeconomicHunger(**ind_kwargs)
     vul_socioeconomic = Dimension(
         "VUL",
         "socioeconomic",
@@ -136,10 +138,10 @@ with console.status("Initializing CCVI components...", spinner="earth"):
         ],
     )
     # Dim "political"
-    vul_political_ethnic = VulPoliticalEthnic(config=config, grid=base_grid)
-    vul_political_gender = VulPoliticalGender(config=config, grid=base_grid)
-    vul_political_institutions = VulPoliticalInstitutions(config=config, grid=base_grid)
-    vul_political_system = VulPoliticalSystem(config=config, grid=base_grid)
+    vul_political_ethnic = VulPoliticalEthnic(**ind_kwargs)
+    vul_political_gender = VulPoliticalGender(**ind_kwargs)
+    vul_political_institutions = VulPoliticalInstitutions(**ind_kwargs)
+    vul_political_system = VulPoliticalSystem(**ind_kwargs)
     vul_political = Dimension(
         "VUL",
         "political",
@@ -152,9 +154,9 @@ with console.status("Initializing CCVI components...", spinner="earth"):
         ],
     )
     # Dim "demographic"
-    vul_demographic_dependent = VulDemographicDependent(config=config, grid=base_grid)
-    vul_demographic_popgrowth = VulDemographicPopgrowth(config=config, grid=base_grid)
-    vul_demographic_uprooted = VulDemographicUprooted(config=config, grid=base_grid)
+    vul_demographic_dependent = VulDemographicDependent(**ind_kwargs)
+    vul_demographic_popgrowth = VulDemographicPopgrowth(**ind_kwargs)
+    vul_demographic_uprooted = VulDemographicUprooted(**ind_kwargs)
     vul_demographic = Dimension(
         "VUL",
         "demographic",
@@ -162,11 +164,11 @@ with console.status("Initializing CCVI components...", spinner="earth"):
         indicators=[vul_demographic_dependent, vul_demographic_popgrowth, vul_demographic_uprooted],
     )
     # Dim "environmental"
-    vul_environmental_irrigation = VulEnvironmentalIrrigation(config=config, grid=base_grid)
-    vul_environmental_biodiversity = VulEnvironmentalBiodiversity(config=config, grid=base_grid)
-    vul_environmental_deforestation = VulEnvironmentalDeforestation(config=config, grid=base_grid)
-    vul_environmental_soil = VulEnvironmentalSoil(config=config, grid=base_grid)
-    vul_environmental_water = VulEnvironmentalWater(config=config, grid=base_grid)
+    vul_environmental_irrigation = VulEnvironmentalIrrigation(**ind_kwargs)
+    vul_environmental_biodiversity = VulEnvironmentalBiodiversity(**ind_kwargs)
+    vul_environmental_deforestation = VulEnvironmentalDeforestation(**ind_kwargs)
+    vul_environmental_soil = VulEnvironmentalSoil(**ind_kwargs)
+    vul_environmental_water = VulEnvironmentalWater(**ind_kwargs)
     vul_environmental = Dimension(
         "VUL",
         "environmental",
@@ -187,12 +189,12 @@ with console.status("Initializing CCVI components...", spinner="earth"):
     )
     ### CLIMATE ###
     # Dim "current"
-    cli_current_floods = CliCurrentFloods(config=config, grid=base_grid)
-    cli_current_cyclones = CliCurrentCyclones(config=config, grid=base_grid)
-    cli_current_heavy_precipitation = CliCurrentHeavyPrecipitation(config=config, grid=base_grid)
-    cli_current_heatwave = CliCurrentHeatwave(config=config, grid=base_grid)
-    cli_current_wildfires = CliCurrentWildfires(config=config, grid=base_grid)
-    cli_current_drought = CliCurrentDrought(config=config, grid=base_grid)
+    cli_current_floods = CliCurrentFloods(**ind_kwargs)
+    cli_current_cyclones = CliCurrentCyclones(**ind_kwargs)
+    cli_current_heavy_precipitation = CliCurrentHeavyPrecipitation(**ind_kwargs)
+    cli_current_heatwave = CliCurrentHeatwave(**ind_kwargs)
+    cli_current_wildfires = CliCurrentWildfires(**ind_kwargs)
+    cli_current_drought = CliCurrentDrought(**ind_kwargs)
 
     cli_current = ExposureDimension(
         base_grid,
@@ -209,14 +211,12 @@ with console.status("Initializing CCVI components...", spinner="earth"):
         ],
     )
     # Dim "accumulated"
-    cli_accumulated_floods = CliAccumulatedFloods(config=config, grid=base_grid)
-    cli_accumulated_cyclones = CliAccumulatedCyclones(config=config, grid=base_grid)
-    cli_accumulated_heavy_precipitation = CliAccumulatedHeavyPrecipitation(
-        config=config, grid=base_grid
-    )
-    cli_accumulated_heatwave = CliAccumulatedHeatwave(config=config, grid=base_grid)
-    cli_accumulated_wildfires = CliAccumulatedWildfires(config=config, grid=base_grid)
-    cli_accumulated_drought = CliAccumulatedDrought(config=config, grid=base_grid)
+    cli_accumulated_floods = CliAccumulatedFloods(**ind_kwargs)
+    cli_accumulated_cyclones = CliAccumulatedCyclones(**ind_kwargs)
+    cli_accumulated_heavy_precipitation = CliAccumulatedHeavyPrecipitation(**ind_kwargs)
+    cli_accumulated_heatwave = CliAccumulatedHeatwave(**ind_kwargs)
+    cli_accumulated_wildfires = CliAccumulatedWildfires(**ind_kwargs)
+    cli_accumulated_drought = CliAccumulatedDrought(**ind_kwargs)
 
     cli_accumulated = ExposureDimension(
         base_grid,
@@ -234,11 +234,9 @@ with console.status("Initializing CCVI components...", spinner="earth"):
     )
 
     # Dim "longterm"
-    cli_longterm_relative_sea_level = CliLongtermRelativeSeaLevel(config=config, grid=base_grid)
-    cli_longterm_temperature_anomaly = CliLongtermTemperatureAnomaly(config=config, grid=base_grid)
-    cli_longterm_precipitation_anomaly = CliLongtermPrecipitationAnomaly(
-        config=config, grid=base_grid
-    )
+    cli_longterm_relative_sea_level = CliLongtermRelativeSeaLevel(**ind_kwargs)
+    cli_longterm_temperature_anomaly = CliLongtermTemperatureAnomaly(**ind_kwargs)
+    cli_longterm_precipitation_anomaly = CliLongtermPrecipitationAnomaly(**ind_kwargs)
 
     cli_longterm = ExposureDimension(
         base_grid,
@@ -421,7 +419,7 @@ if __name__ == "__main__":
     # con_soctens_persistence.run()
     # con_soctens_surrounding.run()
     # con_soctens.run()
-    
+
     ## conflict dim "context"
     # con_context_actors.run()
     # con_context_country.run()
