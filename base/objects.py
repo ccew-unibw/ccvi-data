@@ -129,8 +129,8 @@ class ConfigParser:
             dict[str, Any]: The dictionary containing global configuration settings.
         """
         config = self.all_config["global"]
-        global_keys = {"storage_path", "start_year", "regenerate"}
-        assert set(config.keys()) == global_keys and len(config) == 3, (
+        global_keys = {"storage_path", "start_year", "regenerate", "skip_input_checks"}
+        assert set(config.keys()) == global_keys and len(config) == 4, (
             "Global config keys do not match requirements. Check for missing or duplicate keys."
             f"\nRequired: {global_keys}."
         )
@@ -573,9 +573,10 @@ class GlobalBaseGrid:
             requires_processing_storage=True,
             processing_folder="base_grid",
         )
-        for key in self.config:
-            self.storage.check_exists(self.config[key])
-        self.basemap = self.create_country_basemap()
+        if not self.global_config["skip_input_checks"]: # skips input checks/setup
+            for key in self.config:
+                self.storage.check_exists(self.config[key])
+            self.basemap = self.create_country_basemap()
 
     def load_filter_data(self) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]:
         """Loads and preprocessed country boundaries and land/water masks.
@@ -1660,14 +1661,15 @@ class Dataset(ABC):
                 storage_base_path=self.global_config["storage_path"],
                 requires_processing_storage=False,
             )
-        if self.local:
-            if hasattr(self, "data_keys"):
-                data_keys = getattr(self, "data_keys")
-            else:
-                data_keys = [self.data_key]
-            self.data_config = config.get_data_config(data_keys)
-            for key in self.data_config:
-                self.storage.check_exists(self.data_config[key])
+        if not self.global_config["skip_input_checks"]: # skips input checks
+            if self.local:
+                if hasattr(self, "data_keys"):
+                    data_keys = getattr(self, "data_keys")
+                else:
+                    data_keys = [self.data_key]
+                self.data_config = config.get_data_config(data_keys)
+                for key in self.data_config:
+                    self.storage.check_exists(self.data_config[key])
 
     @abstractmethod
     def load_data(self, *args, **kwargs) -> Any:
