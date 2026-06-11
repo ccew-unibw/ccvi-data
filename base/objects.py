@@ -1,4 +1,5 @@
 from abc import abstractmethod, ABC
+from functools import cached_property
 import itertools
 import os
 from typing import Any, Literal, overload
@@ -545,8 +546,8 @@ class GlobalBaseGrid:
             adding "base_grid" to `regenerate: preprocessing` in the config.yaml).
         storage (StorageManager): An initialized StorageManager instance for
             handling data storage based on global config's storage_path.
-        basemap (gpd.GeoDataFrame): Country basemap for matching. Set via
-            `create_country_basemap()` during init.
+        basemap (gpd.GeoDataFrame): Country basemap for matching. Lazily loaded/created
+            via `create_country_basemap()` and cached upon first use.
     """
 
     console: Console = console
@@ -576,7 +577,10 @@ class GlobalBaseGrid:
         if not self.global_config["skip_input_checks"]: # skips input checks/setup
             for key in self.config:
                 self.storage.check_exists(self.config[key])
-            self.basemap = self.create_country_basemap()
+            
+    @cached_property
+    def basemap(self) -> gpd.GeoDataFrame:
+        return self.create_country_basemap()
 
     def load_filter_data(self) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]:
         """Loads and preprocessed country boundaries and land/water masks.
@@ -586,7 +590,7 @@ class GlobalBaseGrid:
                 containing the processed GeoDataFrames for countries, land mask,
                 and inland water mask, respectively.
         """
-        countries = self.create_country_basemap()
+        countries = self.basemap
         land = gpd.read_file(self.config["land_mask"])
         lakes = gpd.read_file(self.config["inland_water_mask"])
         return countries, land, lakes
@@ -959,6 +963,7 @@ class Indicator(ABC, CompositeIDMixin):
         self.regenerate = config.get_regeneration_config(
             self.composite_id, ["indicator", "preprocessing"]
         )
+                
         # this allows acces to load the grid for data structures
         self.grid = grid
 
@@ -1661,13 +1666,13 @@ class Dataset(ABC):
                 storage_base_path=self.global_config["storage_path"],
                 requires_processing_storage=False,
             )
-        if not self.global_config["skip_input_checks"]: # skips input checks
-            if self.local:
-                if hasattr(self, "data_keys"):
-                    data_keys = getattr(self, "data_keys")
-                else:
-                    data_keys = [self.data_key]
-                self.data_config = config.get_data_config(data_keys)
+        if self.local:
+            if hasattr(self, "data_keys"):
+                data_keys = getattr(self, "data_keys")
+            else:
+                data_keys = [self.data_key]
+            self.data_config = config.get_data_config(data_keys)
+            if not self.global_config["skip_input_checks"]: # skips input checks
                 for key in self.data_config:
                     self.storage.check_exists(self.data_config[key])
 
