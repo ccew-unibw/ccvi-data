@@ -22,8 +22,9 @@ RAW_SUFFIX = "_raw"
 def parse_args():
     parser = ArgumentParser(
         description=(
-            "Reconstruct the structure of the CCVI pipeline output folder from a downloaded full data zip."
-            "Files are written to TARGET_FOLDER/output."
+            "Simple helper to reconstruct the structure of the CCVI pipeline output folder from the "
+            "full data zip files available through the website."
+            "\nFiles are written to TARGET_FOLDER/output."
         )
     )
     parser.add_argument("zip_path", type=Path, help="Path to the downloaded CCVI full data zip file.")
