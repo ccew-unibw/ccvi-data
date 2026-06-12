@@ -81,6 +81,8 @@ The following configurations are available
       start_year: 2015
       # Path under which the input/processing/output storage folders are contained/will be created.
       storage_path: data
+      # Boolean flag to skip input checks, useful for customization with existing indicator data.
+      skip_input_checks: False
       # IDs added to regenerate force regeneration of indicator calculation preprocessing or data 
       # loading even if current versions are in storage. Aggregate scores are always regenerated.
       regenerate:
@@ -126,12 +128,18 @@ The following configurations are available
           # ...
     ```
 
+## Customization
 
-## Framework & Architecture
+The framework was designed with modularity in mind to allow for easy customization.
 
-The project framework was designed with modularity in mind. Individual indicator and data sources can easily be modified and replaces without affecting the whole project.
+- Aggregation methods and weights can be easily adjusted through the config. The `skip_input_checks` global config option allows users to so based on the published index data without having to run the whole data pipeline. A helper script `setup_storage_from_download.py` is available to populate the required output storage from the data download available on our website. Run 
+```python3 setup_storage_from_download.py --help``` for usage instructions.
+- Index composition and hierarchy is defined in `ccvi.py`. Individual index components can be dropped or re-grouped simply by adjusting the input for the `Dimension` and `Pillar` classes. Note that exposure is currently handled at the Dimension-level, so individual indicators with/without exposure cannot be combined in one Dimension without further changes.
+- While this requires deeper modifications, the modular class-based architecture means individual indicator and data sources can simply be added, modified and replaced without impacting the whole project.
 
-The architecture follows the composite index logic of the CCVI. Base classes were designed to handle the core functionality and provide a unique interface for `Datasets`, `Indicators`, and our two main aggregation levels `Dimensions` and Pillars. Additionally, shared `ConfigParser`, `StorageManager` and `GlobalBasegrid` classes provide the framework for the geospatial resultion, to read config, and to cache processing steps and store results.
+## Framework / Architecture
+
+The architecture follows the composite index logic of the CCVI. Base classes were designed to handle the core functionality and provide a unique interface for `Datasets`, `Indicators`, and our two main aggregation levels `Dimension` and `Pillar`. Additionally, shared `ConfigParser`, `StorageManager` and `GlobalBasegrid` classes provide the framework to read config, to cache processing steps and store results, and for the geospatial resultion,.
 
 ### Data structure
 
