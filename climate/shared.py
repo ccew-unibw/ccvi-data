@@ -115,13 +115,12 @@ class NormalizationMixin:
         indicator_config: dict,
         start_year: int,
         normalize_raw_col: bool = True,
+        reference_cutoff_year: int = 2020,
     ) -> pd.DataFrame:
         # load transformation config
         transformation_func = self._TRANSFORMATION_MAP().get(indicator_config.get("transformation"))
         # load normalization limit
         quantile_normalization_limit = indicator_config.get("normalization_quantile")
-
-        kwargs = quantile_normalization_limit if quantile_normalization_limit else {}
 
         # Fallback to identity if no transformation
         func = transformation_func if transformation_func else lambda x: x
@@ -132,9 +131,23 @@ class NormalizationMixin:
         else:
             norm_col = composite_id
 
-        # Apply transformation and normalize
-        df_indicator[f"{composite_id}"] = winsorization_normalization(
-            df_indicator[norm_col].apply(func), **kwargs
+        # Apply transformation
+        series = df_indicator[norm_col].apply(func)
+
+        # Fixed reference period: compute winsorization limits on data
+        # up to and including `reference_cutoff_year` (default 2020), so
+        # historical scores stay stable as new quarters are added.
+        # Same convention as Deprivation.normalize in
+        # vulnerability/socioeconomic/deprivation.py.
+        ref = series[df_indicator["year"] <= reference_cutoff_year]
+
+        if quantile_normalization_limit is None:
+            minv, maxv = ref.min(), ref.max()
+        else:
+            minv, maxv = np.nanquantile(ref, quantile_normalization_limit["limits"])
+
+        df_indicator[composite_id] = winsorization_normalization(
+            series, limits=(minv, maxv), fixed_limits=True,
         )
 
         # Set index
