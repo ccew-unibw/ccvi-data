@@ -10,8 +10,8 @@ data:
   land_mask: ne_50m_land.zip # https://www.naturalearthdata.com/downloads/
   inland_water_mask: ne_10m_lakes.zip # https://www.naturalearthdata.com/downloads/
   acled: acled_index_input_20250704.parquet # https://acleddata.com/
-  shdi: "Subnational HDI Data v10.1.csv" # https://globaldatalab.org/
-  shdi_shapes: "GDL Shapefiles V6.6.zip" # https://globaldatalab.org/
+  shdi: "Subnational HDI Data v10.2.csv" # https://globaldatalab.org/
+  shdi_shapes: "GDL Shapefiles V6.7.zip" # https://globaldatalab.org/
   wpp: WPP2024_GEN_F01_DEMOGRAPHIC_INDICATORS_COMPACT.xlsx # https://population.un.org/wpp/
   wpp_agegroups: WPP2024_POP_F03_1_POPULATION_SELECT_AGE_GROUPS_BOTH_SEXES.xlsx # https://population.un.org/wpp/
   freedomhouse: All_data_FIW_2013-2026.xlsx # https://freedomhouse.org/report/freedom-world
