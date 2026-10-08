@@ -26,40 +26,45 @@ def apirequest(outfilename="", year="1990", month="01", days=[]):
 
     load_dotenv()
     EWDS_KEY = os.getenv("EWDS_KEY")
-    try:
-        dataset = "cems-glofas-historical"
-        request = {
-            "system_version": ["version_4_0"],
-            "hydrological_model": ["lisflood"],
-            "product_type": ["consolidated", "intermediate"],
-            "variable": ["river_discharge_in_the_last_24_hours"],
-            "hyear": [year],
-            "hmonth": [month],
-            "hday": days,
-            "data_format": "netcdf",
-            "download_format": "zip",
-        }
+    dataset = "cems-glofas-historical"
+    request = {
+        "system_version": ["version_4_0"],
+        "hydrological_model": ["lisflood"],
+        "product_type": ["consolidated", "intermediate"],
+        "variable": ["average_river_discharge_in_the_last_24_hours"],
+        "timespan": ["time_mean"],
+        "year": [year],
+        "month": [month],
+        "day": days,
+        "data_format": "netcdf",
+        "download_format": "zip",
+    }
 
-        c = cdsapi.Client(url="https://ewds.climate.copernicus.eu/api", key=f"{EWDS_KEY}")
+    c = cdsapi.Client(url="https://ewds.climate.copernicus.eu/api", key=f"{EWDS_KEY}")
 
-        c.retrieve(dataset, request, outfilename)
-    except Exception as e:
-        print(e)
-        pass
+    c.retrieve(dataset, request, outfilename)
 
 
 def process_nc(ncfilepath, glofas_thresold):
     # read nc file
     import xarray as xr
 
-    if os.path.exists(f"{ncfilepath}/data_version-4.0_consolidated.nc"):
-        consolidated_intermediate = "consolidated"
+    # files downloaded before the EWDS API change (2026-07-30) are split by product type,
+    # newer downloads come as a single data_0.nc
+    for fname in [
+        "data_version-4.0_consolidated.nc",
+        "data_version-4.0_intermediete.nc",
+        "data_0.nc",
+    ]:
+        if os.path.exists(f"{ncfilepath}/{fname}"):
+            break
     else:
-        consolidated_intermediate = "intermediete"
+        raise FileNotFoundError(f"No GloFAS netCDF file found in {ncfilepath}")
 
-    ds = xr.open_dataset(
-        f"{ncfilepath}/data_version-4.0_{consolidated_intermediate}.nc", engine="h5netcdf"
-    )
+    ds = xr.open_dataset(f"{ncfilepath}/{fname}", engine="h5netcdf")
+    # variable was renamed from dis24 to avg_dis with the EWDS API change
+    if "avg_dis" in ds:
+        ds = ds.rename({"avg_dis": "dis24"})
 
     # to pandas dataframe
     df = ds.to_dataframe().reset_index()
