@@ -139,7 +139,13 @@ class NormalizationMixin:
         # historical scores stay stable as new quarters are added.
         # Same convention as Deprivation.normalize in
         # vulnerability/socioeconomic/deprivation.py.
-        ref = series[df_indicator["year"] <= reference_cutoff_year]
+        # `year` may be a column or an index level (e.g. accumulated drought).
+        years = (
+            df_indicator["year"]
+            if "year" in df_indicator.columns
+            else df_indicator.index.get_level_values("year")
+        )
+        ref = series[np.asarray(years <= reference_cutoff_year)]
 
         if quantile_normalization_limit is None:
             minv, maxv = ref.min(), ref.max()
