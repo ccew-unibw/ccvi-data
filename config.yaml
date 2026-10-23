@@ -42,7 +42,7 @@ indicators:
         normalization_quantile: {'limits':[0, 0.9995]}
       drought:
         transformation: null
-        normalization_quantile: {'limits':[0, 0.9995]}
+        normalization_quantile: {'limits':[0, 0.99995]}
       cyclones:
         transformation: log1p
         normalization_quantile: null
@@ -61,7 +61,7 @@ indicators:
         normalization_quantile: {'limits':[0, 0.9995]}
       drought:
         transformation: null
-        normalization_quantile: {'limits':[0, 0.9995]}
+        normalization_quantile: {'limits':[0, 1]}
       cyclones:
         transformation: log1p
         normalization_quantile: null
