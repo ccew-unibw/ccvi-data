@@ -147,7 +147,13 @@ class NormalizationMixin:
         )
         ref = series[np.asarray(years <= reference_cutoff_year)]
 
-        if quantile_normalization_limit is None:
+        # Fixed theoretical limits (e.g. for already standardized indices such
+        # as SPEI) take precedence over limits derived from the reference period.
+        fixed_limits = indicator_config.get("normalization_limits")
+
+        if fixed_limits is not None:
+            minv, maxv = fixed_limits
+        elif quantile_normalization_limit is None:
             minv, maxv = ref.min(), ref.max()
         else:
             minv, maxv = np.nanquantile(ref, quantile_normalization_limit["limits"])

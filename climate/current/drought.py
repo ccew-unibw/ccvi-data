@@ -56,8 +56,13 @@ class CliCurrentDrought(Indicator, NormalizationMixin):
 
         df_indicator = df_preprocessed[["pgid", "year", "quarter", "lat", "lon", "spei12"]]
         df_indicator.rename(columns={"spei12": f"{self.composite_id}_raw"}, inplace=True)
+        # clip at the fixed exceptional-drought threshold (SPEI-12 never falls below -3
+        # in the ERA5 product before 2020), keeping the unclipped value as raw
+        spei = df_indicator[f"{self.composite_id}_raw"].clip(
+            lower=self.indicator_config["spei_threshold"]
+        )
         # filter spei and reverse while preserving NAs
-        df_indicator[self.composite_id] = df_indicator[f"{self.composite_id}_raw"].apply(
+        df_indicator[self.composite_id] = spei.apply(
             lambda x: x * -1 if x < 0 or np.isnan(x) else 0
         )
         return df_indicator
