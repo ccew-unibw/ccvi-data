@@ -55,7 +55,11 @@ class CliAccumulatedDrought(Indicator, NormalizationMixin):
         # the indicator score is reversed (so higher normalized values imply more severe drought)
 
         df_indicator = df_preprocessed[["pgid", "year", "quarter", "lat", "lon", "spei12"]]
-        df_indicator["spei12_n"] = df_indicator["spei12"].apply(
+        # clip at the fixed exceptional-drought threshold (SPEI-12 never falls below -3
+        # in the ERA5 product before 2020) so single extreme values cannot dominate the mean
+        df_indicator["spei12_n"] = (
+            df_indicator["spei12"].clip(lower=self.indicator_config["spei_threshold"])
+        ).apply(
             lambda x: x * -1 if x < 0 or np.isnan(x) else 0
         )
 

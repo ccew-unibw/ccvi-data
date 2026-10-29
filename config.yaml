@@ -42,7 +42,11 @@ indicators:
         normalization_quantile: {'limits':[0, 0.9995]}
       drought:
         transformation: null
-        normalization_quantile: {'limits':[0, 0.99995]}
+        # fixed SPEI threshold for exceptional drought, values below are clipped
+        spei_threshold: -3
+        normalization_quantile: null
+        # fixed limits instead of reference-period limits: 0 = no drought, 3 = |spei_threshold|
+        normalization_limits: [0, 3]
       cyclones:
         transformation: log1p
         normalization_quantile: null
@@ -61,7 +65,11 @@ indicators:
         normalization_quantile: {'limits':[0, 0.9995]}
       drought:
         transformation: null
-        normalization_quantile: {'limits':[0, 1]}
+        # fixed SPEI threshold for exceptional drought, values below are clipped
+        spei_threshold: -3
+        normalization_quantile: null
+        # fixed limits instead of reference-period limits: 0 = no drought, 3 = |spei_threshold|
+        normalization_limits: [0, 3]
       cyclones:
         transformation: log1p
         normalization_quantile: null
