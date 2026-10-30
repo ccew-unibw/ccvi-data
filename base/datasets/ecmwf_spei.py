@@ -198,10 +198,13 @@ def process_nc(spei_filepath, significance_filepath):
 
     # to pandas dataframe
     df = ds_spei.to_dataframe().reset_index()
-    # replace values smaller equal <-6 with np.nan
-    # the FillValue is -9999 and there are some invalid values around -8
-    # no valid values should ever reach -6
-    df.loc[df["SPEI12"] <= -6, "SPEI12"] = pd.NA
+    # the FillValue is -9999 and -8.222 is used as a constant invalid value for
+    # a fixed set of pixels per calendar month, both are set to NaN
+    invalid = (df["SPEI12"] <= -9000) | np.isclose(df["SPEI12"], -8.222, atol=5e-4)
+    df.loc[invalid, "SPEI12"] = np.nan
+    # genuine values beyond +-6 occur in recent years under extreme conditions;
+    # clip them instead of dropping them, which left cells empty in severe droughts
+    df["SPEI12"] = df["SPEI12"].clip(lower=-6, upper=6)
     df = df[["time", "lat", "lon", "SPEI12"]]
     df["lat"] = df["lat"].round(3)
     df["lon"] = df["lon"].round(3)
