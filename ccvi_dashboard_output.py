@@ -269,8 +269,10 @@ class CCVIWrapper:
         data_recency = self.ccvi.storage.load(
             filename=f"data_recency_{self.ccvi.quarter_id}", subfolder=self.ccvi.quarter_id
         )
-        # limit to scores
-        df = df[[c for c in df.columns if c not in df_aggregated.columns]]
+        # keep component scores from the tool output, which are forward-filled like
+        # their raw values (and like the inputs of the dimension aggregation); only
+        # add the scores missing there (risk scores and CCVI) from the release file
+        df_aggregated = df_aggregated[[c for c in df_aggregated.columns if c not in df.columns]]
         df = pd.concat([df_aggregated, df], axis=1)
         # loading exposure is easiest via one of the climate dims
         df_exp = ccvi.cli_current._create_exposure_layers()
