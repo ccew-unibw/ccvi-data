@@ -125,9 +125,13 @@ class DimToolOutputWrapper:
         """Loads all scores from indicators and adds dimension score.
 
         Checks whether all indicators are generated, runs the standard dimension
-        validation, loads indicators, fills missing using forward fill, checks
-        and loads dimension scores (setting generated to True), combines
-        everything and stores it in the "tool" output subfolder.
+        validation, loads indicators, checks and loads dimension scores (setting
+        generated to True), combines everything and stores it in the "tool"
+        output subfolder. Indicator scores and raw values are stored as observed
+        so that they reflect the actual data availability. Exposure columns are
+        calculated from a forward-filled copy of the indicator scores to match
+        the inputs of the dimension aggregation, which forward-fills the scores
+        before applying the exposure.
         """
         self.console.print(f'Processing dimension "{self.composite_id}"...')
         for i in self.dimension.components:
@@ -137,18 +141,24 @@ class DimToolOutputWrapper:
         self.dimension.validate_indicator_input(self.dimension.components)
 
         self.console.print("Loading indicators...")
+        # scores and raw values are stored as observed to reflect the actual data
+        # availability
         df = self.dimension.load_components(load_additional_values=True)
-        # fill missing data with the last available observation
-        imputer = PanelImputer(
-            time_index=["year", "quarter"],
-            location_index="pgid",
-            imputation_method="ffill",
-            parallelize=True,
-        )
-        df: pd.DataFrame = imputer.fit_transform(df)  # type: ignore
         if self.dimension.has_exposure:
             self.console.print("Adding exposure...")
-            df_exp = self.dimension.add_exposure(df)
+            # the dimension aggregation forward-fills the indicator scores before
+            # applying the exposure, so the exposure columns have to be based on
+            # a forward-filled copy of the scores to match its inputs
+            imputer = PanelImputer(
+                time_index=["year", "quarter"],
+                location_index="pgid",
+                imputation_method="ffill",
+                parallelize=True,
+            )
+            df_scores: pd.DataFrame = imputer.fit_transform(
+                df[[i.composite_id for i in self.dimension.components]]
+            )  # type: ignore
+            df_exp = self.dimension.add_exposure(df_scores)
             df = pd.concat([df, df_exp], axis=1)
 
         self.console.print("Loading aggregate score...")
@@ -249,8 +259,10 @@ class CCVIWrapper:
         """Loads all scores and data recency and stores in tool output format.
 
         Loads all preprocessed components from "tool" output subfolder, loads
-        risk scores, combines both. Also loads data recency and grid and stores
-        everything
+        the release scores, and combines both: all score columns are taken from
+        the release file (stored as observed by the pipeline), with the tool
+        data also including the raw and exposure columns. Also loads data
+        recency and grid and stores everything
 
         Args:
             skip_vul_raw (bool, optional): Flag to indicate whether to skip
@@ -269,10 +281,10 @@ class CCVIWrapper:
         data_recency = self.ccvi.storage.load(
             filename=f"data_recency_{self.ccvi.quarter_id}", subfolder=self.ccvi.quarter_id
         )
-        # keep component scores from the tool output, which are forward-filled like
-        # their raw values (and like the inputs of the dimension aggregation); only
-        # add the scores missing there (risk scores and CCVI) from the release file
-        df_aggregated = df_aggregated[[c for c in df_aggregated.columns if c not in df.columns]]
+        # limit to scores: the release file is the source of truth for all score
+        # columns, which reflect the actual data availability as stored by the
+        # pipeline; the tool data additionally loads the raw and exposure columns
+        df = df[[c for c in df.columns if c not in df_aggregated.columns]]
         df = pd.concat([df_aggregated, df], axis=1)
         # loading exposure is easiest via one of the climate dims
         df_exp = ccvi.cli_current._create_exposure_layers()
