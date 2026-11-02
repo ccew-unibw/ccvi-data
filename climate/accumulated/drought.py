@@ -65,7 +65,12 @@ class CliAccumulatedDrought(Indicator, NormalizationMixin):
 
         # the mean of negative SPEI-12 values over the past seven years
         df_indicator = df_indicator.set_index(["pgid", "year", "quarter"]).sort_index()
-        means = df_indicator.groupby(["pgid", "quarter"])["spei12_n"].rolling(window=7).mean()
+        # require 5 of 7 years so a single missing year does not blank the cell for 7 years
+        means = (
+            df_indicator.groupby(["pgid", "quarter"])["spei12_n"]
+            .rolling(window=7, min_periods=5)
+            .mean()
+        )
         means = means.reset_index(level=[0, 1], drop=True).sort_index()
         df_indicator[self.composite_id] = means
         df_indicator[f"{self.composite_id}_raw"] = means * -1
